@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: mood-download-local-service
+  profiles:
+    default: dev
+  datasource:
+    driver-class-name: org.sqlite.JDBC
+    url: jdbc:sqlite:${MOODDOWNLOAD_DB_PATH:${user.home}/mooddownload-local.db}
+    hikari:
+      maximum-pool-size: 1
+      minimum-idle: 1
+      connection-test-query: SELECT 1
+      connection-init-sql: PRAGMA foreign_keys = ON;
+  mvc:
+    throw-exception-if-no-handler-found: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:db/schema.sql
+      data-locations: classpath:db/data.sql
+  web:
+    resources:
+      add-mappings: false
+
+server:
+  address: 127.0.0.1
+  port: ${LOCAL_SERVICE_PORT:18080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  config: classpath:log4j2-spring.xml
+
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true
+
+mooddownload:
+  security:
+    enabled: true
+    token: ${LOCAL_SERVICE_TOKEN:change-me-in-prod}
+    token-header-name: X-Local-Token
+    trusted-client-type: desktop-app
+  aria2:
+    enabled: true
+    rpc-url: ${ARIA2_RPC_URL:http://127.0.0.1:6800/jsonrpc}
+    rpc-secret: ${ARIA2_RPC_SECRET:}
+    connect-timeout-millis: 2000
+    read-timeout-millis: 5000
+    dispatch-batch-size: 10
+    sync-batch-size: 100

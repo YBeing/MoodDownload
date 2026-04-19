@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+  <title id="title">MoodDownload - 新建任务弹窗高保真设计稿</title>
+  <desc id="desc">深色技术风弹窗，包含 URL、磁力、种子三类任务入口。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b0f14"/>
+      <stop offset="100%" stop-color="#111823"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1">
+      <stop offset="0%" stop-color="#23c7ff"/>
+      <stop offset="100%" stop-color="#4a8dff"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="20" stdDeviation="18" flood-color="#02070d" flood-opacity="0.5"/>
+    </filter>
+    <style>
+      .text-title { fill:#f4f8ff; font:700 28px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-primary { fill:#eaf2ff; font:600 15px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-secondary { fill:#9cb0c9; font:500 13px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-small { fill:#6f8198; font:500 11px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .mono { fill:#d9ecff; font:600 12px 'JetBrains Mono','IBM Plex Sans','Consolas',monospace; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" fill="url(#bg)"/>
+  <rect width="1440" height="960" fill="#010509" opacity=".42"/>
+
+  <rect x="220" y="120" width="1000" height="720" rx="32" fill="#111823" stroke="#233044" filter="url(#shadow)"/>
+  <rect x="220" y="120" width="1000" height="82" rx="32" fill="#0d141d"/>
+  <path d="M252 202h936" stroke="#203043" stroke-width="1"/>
+  <text x="268" y="170" class="text-title">新建任务</text>
+  <text x="268" y="188" class="text-small">Create Download Task / URL · MAGNET · TORRENT</text>
+
+  <circle cx="1176" cy="162" r="18" fill="#161d27" stroke="#32465e"/>
+  <path d="M1169 155l14 14m0-14-14 14" stroke="#a7bdd6" stroke-width="2" stroke-linecap="round"/>
+
+  <rect x="268" y="232" width="904" height="72" rx="24" fill="#0f1722" stroke="#243547"/>
+  <rect x="284" y="248" width="162" height="40" rx="20" fill="url(#accent)"/>
+  <text x="365" y="273" text-anchor="middle" style="fill:#04111e;font:700 14px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif;">URL 任务</text>
+  <rect x="456" y="248" width="162" height="40" rx="20" fill="#141d29" stroke="#2a4057"/>
+  <text x="537" y="273" text-anchor="middle" class="text-secondary">磁力任务</text>
+  <rect x="628" y="248" width="162" height="40" rx="20" fill="#141d29" stroke="#2a4057"/>
+  <text x="709" y="273" text-anchor="middle" class="text-secondary">种子导入</text>
+
+  <g>
+    <text x="268" y="352" class="text-primary">下载链接</text>
+    <text x="268" y="371" class="text-small">支持 HTTP / HTTPS 直链下载</text>
+    <rect x="268" y="388" width="904" height="78" rx="20" fill="#0e151f" stroke="#2a4057"/>
+    <text x="294" y="434" class="mono">https://releases.ubuntu.com/24.04/ubuntu-24.04-desktop-amd64.iso</text>
+  </g>
+
+  <g>
+    <text x="268" y="520" class="text-primary">保存目录</text>
+    <text x="268" y="539" class="text-small">默认使用设置中的下载目录，可在此临时覆盖</text>
+    <rect x="268" y="554" width="690" height="64" rx="18" fill="#0e151f" stroke="#243547"/>
+    <text x="292" y="593" class="mono">D:\Downloads\Linux\ISO</text>
+    <rect x="976" y="554" width="196" height="64" rx="18" fill="#141d29" stroke="#2a4057"/>
+    <text x="1074" y="592" text-anchor="middle" class="text-primary" style="font-size:14px;">选择目录</text>
+  </g>
+
+  <g>
+    <text x="268" y="674" class="text-primary">自定义任务名称</text>
+    <text x="268" y="693" class="text-small">可选，用于覆盖默认解析名称</text>
+    <rect x="268" y="708" width="904" height="62" rx="18" fill="#0e151f" stroke="#243547"/>
+    <text x="292" y="746" class="text-secondary">ubuntu-24.04-desktop-amd64.iso</text>
+  </g>
+
+  <rect x="268" y="786" width="904" height="1" fill="#203043"/>
+
+  <g>
+    <rect x="840" y="806" width="148" height="44" rx="22" fill="#141d29" stroke="#32465f"/>
+    <text x="914" y="833" text-anchor="middle" class="text-secondary">取消</text>
+    <rect x="1002" y="806" width="170" height="44" rx="22" fill="url(#accent)"/>
+    <text x="1087" y="833" text-anchor="middle" style="fill:#04111e;font:700 14px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif;">创建任务</text>
+  </g>
+
+  <rect x="268" y="820" width="300" height="18" rx="9" fill="#0e151f" stroke="#243547"/>
+  <circle cx="282" cy="829" r="4" fill="#23c7ff"/>
+  <text x="294" y="834" class="text-small">表单校验通过后将写入本地后端并进入任务队列</text>
+</svg>

@@ -1,0 +1,15 @@
+server:
+  port: 0
+
+spring:
+  datasource:
+    url: jdbc:sqlite:target/mooddownload-test.db
+
+mooddownload:
+  security:
+    token: test-local-token
+  aria2:
+    enabled: true
+    rpc-url: http://127.0.0.1:6800/jsonrpc
+    dispatch-batch-size: 10
+    sync-batch-size: 100

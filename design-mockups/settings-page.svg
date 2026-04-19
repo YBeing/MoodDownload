@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+  <title id="title">MoodDownload - 设置页面高保真设计稿</title>
+  <desc id="desc">深色极客风设置页面，包含目录、并发、限速和接管开关。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b0f14"/>
+      <stop offset="100%" stop-color="#101723"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" x2="1">
+      <stop offset="0%" stop-color="#23c7ff"/>
+      <stop offset="100%" stop-color="#4a8dff"/>
+    </linearGradient>
+    <style>
+      .title { fill:#f4f8ff; font:700 28px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .primary { fill:#eaf2ff; font:600 15px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .secondary { fill:#9cb0c9; font:500 13px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .small { fill:#6f8198; font:500 11px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .mono { fill:#d9ecff; font:600 12px 'JetBrains Mono','IBM Plex Sans','Consolas',monospace; }
+      .panel { fill:#121b28; stroke:#243547; stroke-width:1; }
+      .field { fill:#0e151f; stroke:#243547; stroke-width:1; }
+      .field-focus { fill:#0f1722; stroke:#2f5f86; stroke-width:1.2; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" fill="url(#bg)"/>
+  <rect x="0" y="0" width="110" height="960" fill="#0d131c" stroke="#202d40"/>
+  <rect x="14" y="860" rx="16" ry="16" width="82" height="64" fill="#132131" stroke="#2d455f"/>
+  <text x="55" y="907" text-anchor="middle" fill="#f4f8ff" font-family="HarmonyOS Sans SC,Microsoft YaHei,sans-serif" font-size="13" font-weight="700">设置</text>
+
+  <rect x="110" y="0" width="1330" height="70" fill="#0d141d"/>
+  <text x="148" y="44" class="title">设置</text>
+  <text x="148" y="61" class="small">系统配置 / Download Control Center</text>
+
+  <rect x="142" y="98" width="1240" height="794" rx="28" fill="#111823" stroke="#223043"/>
+
+  <g>
+    <rect x="174" y="130" width="1176" height="180" rx="24" class="panel"/>
+    <text x="204" y="170" class="primary" style="font-size:18px;">下载目录</text>
+    <text x="204" y="192" class="small">设置默认保存目录，用于 URL / 磁力 / 种子任务</text>
+    <rect x="204" y="220" width="920" height="64" rx="18" class="field-focus"/>
+    <text x="230" y="258" class="mono">D:\Downloads\Linux\ISO</text>
+    <rect x="1142" y="220" width="178" height="64" rx="18" fill="#151e2b" stroke="#2b425a"/>
+    <text x="1231" y="258" text-anchor="middle" class="primary">选择目录</text>
+  </g>
+
+  <g>
+    <rect x="174" y="334" width="572" height="218" rx="24" class="panel"/>
+    <text x="204" y="374" class="primary" style="font-size:18px;">并发与限速</text>
+    <text x="204" y="396" class="small">控制下载队列密度和带宽占用</text>
+    <text x="204" y="438" class="secondary">最大并发下载数</text>
+    <rect x="204" y="452" width="218" height="60" rx="18" class="field"/>
+    <text x="230" y="488" class="mono">3</text>
+    <text x="460" y="438" class="secondary">全局下载限速</text>
+    <rect x="460" y="452" width="256" height="60" rx="18" class="field"/>
+    <text x="486" y="488" class="mono">0 KB/s  (不限速)</text>
+  </g>
+
+  <g>
+    <rect x="778" y="334" width="572" height="218" rx="24" class="panel"/>
+    <text x="808" y="374" class="primary" style="font-size:18px;">上传与引擎参数</text>
+    <text x="808" y="396" class="small">保留扩展空间，首版只暴露必要项</text>
+    <text x="808" y="438" class="secondary">全局上传限速</text>
+    <rect x="808" y="452" width="256" height="60" rx="18" class="field"/>
+    <text x="834" y="488" class="mono">0 KB/s  (不限速)</text>
+    <text x="1102" y="438" class="secondary">引擎状态</text>
+    <rect x="1102" y="452" width="218" height="60" rx="18" class="field"/>
+    <text x="1128" y="488" class="mono">ARIA2 / READY</text>
+  </g>
+
+  <g>
+    <rect x="174" y="576" width="1176" height="228" rx="24" class="panel"/>
+    <text x="204" y="616" class="primary" style="font-size:18px;">接管与监听</text>
+    <text x="204" y="638" class="small">控制浏览器接管、剪贴板监听和运行行为</text>
+
+    <text x="204" y="690" class="secondary">浏览器接管</text>
+    <text x="204" y="710" class="small">点击浏览器下载时，由本地应用接收任务</text>
+    <rect x="1128" y="674" width="92" height="40" rx="20" fill="url(#accent)"/>
+    <circle cx="1198" cy="694" r="14" fill="#f4fbff"/>
+
+    <text x="204" y="760" class="secondary">剪贴板监听</text>
+    <text x="204" y="780" class="small">识别可下载链接并提供快速创建入口</text>
+    <rect x="1128" y="744" width="92" height="40" rx="20" fill="url(#accent)"/>
+    <circle cx="1198" cy="764" r="14" fill="#f4fbff"/>
+  </g>
+
+  <rect x="142" y="910" width="1240" height="1" fill="#243547"/>
+  <g>
+    <rect x="1100" y="874" width="118" height="44" rx="22" fill="#151e2b" stroke="#32465f"/>
+    <text x="1159" y="901" text-anchor="middle" class="secondary">取消</text>
+    <rect x="1230" y="874" width="152" height="44" rx="22" fill="url(#accent)"/>
+    <text x="1306" y="901" text-anchor="middle" fill="#04111e" font-family="HarmonyOS Sans SC,Microsoft YaHei,sans-serif" font-size="14" font-weight="700">保存设置</text>
+  </g>
+</svg>

@@ -1,0 +1,228 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 960" role="img" aria-labelledby="title desc">
+  <title id="title">MoodDownload - 下载中页面高保真设计稿</title>
+  <desc id="desc">深色极客风下载控制台，包含左侧导航、顶部标题栏、状态摘要和任务列表。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0b0f14"/>
+      <stop offset="100%" stop-color="#101723"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" x2="1">
+      <stop offset="0%" stop-color="#1dcfff"/>
+      <stop offset="100%" stop-color="#4a8dff"/>
+    </linearGradient>
+    <linearGradient id="progress" x1="0" x2="1">
+      <stop offset="0%" stop-color="#1ad1ff"/>
+      <stop offset="100%" stop-color="#36f3c8"/>
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="0" stdDeviation="8" flood-color="#23c7ff" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .frame { fill: url(#bg); }
+      .panel { fill: #151e2b; stroke: #223043; stroke-width: 1; }
+      .panel-soft { fill: #111823; stroke: #223043; stroke-width: 1; }
+      .card { fill: #121b28; stroke: #253449; stroke-width: 1; }
+      .sidebar { fill: #0d131c; stroke: #202d40; stroke-width: 1; }
+      .divider { stroke: #233044; stroke-width: 1; }
+      .text-primary { fill: #eaf2ff; font: 600 16px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-title { fill: #f4f8ff; font: 700 28px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-secondary { fill: #9cb0c9; font: 500 13px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .text-mono { fill: #d9ecff; font: 600 13px 'JetBrains Mono','IBM Plex Sans','Consolas',monospace; }
+      .text-small { fill: #6f8198; font: 500 11px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; letter-spacing: 0.5px; }
+      .nav { fill: #8fa4bf; font: 600 13px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .nav-active { fill: #f4f8ff; font: 700 13px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif; }
+      .chip-run { fill: rgba(35,199,255,.12); stroke: #23c7ff; stroke-width: 1; }
+      .chip-done { fill: rgba(39,217,128,.12); stroke: #27d980; stroke-width: 1; }
+      .chip-pause { fill: rgba(247,184,75,.12); stroke: #f7b84b; stroke-width: 1; }
+      .btn-primary { fill: url(#cyan); }
+      .btn-secondary { fill: #121b27; stroke: #294057; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect width="1440" height="960" class="frame"/>
+  <rect x="0" y="0" width="1440" height="960" fill="none" stroke="#1f2b3c"/>
+
+  <rect x="0" y="0" width="110" height="960" class="sidebar"/>
+  <rect x="109" y="0" width="1" height="960" fill="#223043"/>
+
+  <text x="24" y="42" class="text-primary" style="font-size:18px; letter-spacing:.4px;">MOOD</text>
+  <text x="24" y="58" class="text-small">DOWNLOAD</text>
+
+  <rect x="14" y="108" rx="16" ry="16" width="82" height="70" fill="#132131" stroke="#2d455f"/>
+  <rect x="18" y="112" rx="14" ry="14" width="6" height="62" fill="url(#cyan)"/>
+  <circle cx="54" cy="132" r="10" fill="none" stroke="#23c7ff" stroke-width="2"/>
+  <path d="M54 126v11m-5-5 5 5 5-5" fill="none" stroke="#23c7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="54" y="160" text-anchor="middle" class="nav-active">下载中</text>
+
+  <g opacity=".95">
+    <circle cx="54" cy="225" r="10" fill="none" stroke="#7f93ad" stroke-width="1.8"/>
+    <path d="M48 225h12" stroke="#7f93ad" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="54" y="250" text-anchor="middle" class="nav">已完成</text>
+  </g>
+  <g opacity=".95">
+    <circle cx="54" cy="318" r="10" fill="none" stroke="#7f93ad" stroke-width="1.8"/>
+    <path d="M51 312v12l8-6z" fill="#7f93ad"/>
+    <text x="54" y="343" text-anchor="middle" class="nav">已暂停</text>
+  </g>
+  <g opacity=".95">
+    <circle cx="54" cy="411" r="10" fill="none" stroke="#7f93ad" stroke-width="1.8"/>
+    <path d="M50 407l8 8m0-8-8 8" stroke="#7f93ad" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="54" y="436" text-anchor="middle" class="nav">失败</text>
+  </g>
+
+  <g opacity=".92">
+    <rect x="16" y="860" rx="16" ry="16" width="78" height="64" fill="#111823" stroke="#223043"/>
+    <circle cx="54" cy="883" r="9" fill="none" stroke="#8fa4bf" stroke-width="1.8"/>
+    <path d="M54 878v10m-5-5h10" stroke="#8fa4bf" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="54" y="910" text-anchor="middle" class="nav">设置</text>
+  </g>
+
+  <rect x="110" y="0" width="1330" height="70" fill="#0d141d" opacity=".92"/>
+  <line x1="110" y1="70" x2="1440" y2="70" class="divider"/>
+  <text x="148" y="44" class="text-title">下载中</text>
+  <text x="148" y="61" class="text-small">专业下载控制台 / Running Tasks</text>
+
+  <rect x="1108" y="18" width="136" height="36" rx="18" class="btn-primary" filter="url(#glow)"/>
+  <text x="1176" y="41" text-anchor="middle" style="fill:#04111e;font:700 14px 'HarmonyOS Sans SC','Microsoft YaHei',sans-serif;">+ 新建任务</text>
+
+  <rect x="1260" y="18" width="38" height="36" rx="10" class="btn-secondary"/>
+  <rect x="1308" y="18" width="38" height="36" rx="10" class="btn-secondary"/>
+  <rect x="1356" y="18" width="38" height="36" rx="10" fill="#171d26" stroke="#394b63"/>
+  <path d="M1272 36h14" stroke="#9db3cd" stroke-width="1.8" stroke-linecap="round"/>
+  <rect x="1318" y="28" width="16" height="12" fill="none" stroke="#9db3cd" stroke-width="1.5"/>
+  <path d="M1367 29l15 15m0-15-15 15" stroke="#9db3cd" stroke-width="1.8" stroke-linecap="round"/>
+
+  <rect x="142" y="98" width="1240" height="118" rx="22" class="panel-soft"/>
+  <text x="170" y="128" class="text-primary" style="font-size:15px;">实时状态总览</text>
+  <text x="170" y="146" class="text-small">任务、速度、连接状态在一个视图里完成感知</text>
+
+  <rect x="170" y="164" width="218" height="34" rx="17" fill="#101722" stroke="#243345"/>
+  <circle cx="190" cy="181" r="5" fill="#23c7ff"/>
+  <text x="204" y="186" class="text-secondary" style="font-size:12px;">SSE 通道稳定连接中</text>
+
+  <g>
+    <rect x="420" y="118" width="210" height="78" rx="20" class="card"/>
+    <text x="444" y="142" class="text-small">总任务数</text>
+    <text x="444" y="178" style="fill:#ffffff;font:700 34px 'JetBrains Mono','IBM Plex Sans',monospace;">18</text>
+    <text x="567" y="178" class="text-small">tasks</text>
+  </g>
+  <g>
+    <rect x="646" y="118" width="210" height="78" rx="20" class="card"/>
+    <text x="670" y="142" class="text-small">活跃任务</text>
+    <text x="670" y="178" style="fill:#ffffff;font:700 34px 'JetBrains Mono','IBM Plex Sans',monospace;">06</text>
+    <text x="793" y="178" class="text-small">active</text>
+  </g>
+  <g>
+    <rect x="872" y="118" width="230" height="78" rx="20" class="card"/>
+    <text x="896" y="142" class="text-small">总下载速度</text>
+    <text x="896" y="178" style="fill:#23c7ff;font:700 32px 'JetBrains Mono','IBM Plex Sans',monospace;">12.6 MB/s</text>
+  </g>
+  <g>
+    <rect x="1118" y="118" width="236" height="78" rx="20" class="card"/>
+    <text x="1142" y="142" class="text-small">引擎状态</text>
+    <text x="1142" y="178" style="fill:#f3f8ff;font:700 30px 'JetBrains Mono','IBM Plex Sans',monospace;">ARIA2 / READY</text>
+  </g>
+
+  <rect x="142" y="238" width="1240" height="66" rx="18" class="panel"/>
+  <rect x="168" y="255" width="314" height="32" rx="16" fill="#101722" stroke="#243345"/>
+  <circle cx="190" cy="271" r="6" fill="none" stroke="#7f93ad" stroke-width="1.5"/>
+  <path d="M194 276l7 7" stroke="#7f93ad" stroke-width="1.5" stroke-linecap="round"/>
+  <text x="208" y="276" class="text-secondary" style="font-size:12px;">搜索任务 / URL / 文件名</text>
+
+  <rect x="506" y="255" width="120" height="32" rx="16" fill="#101722" stroke="#243345"/>
+  <text x="529" y="276" class="text-secondary" style="font-size:12px;">状态：全部</text>
+  <rect x="644" y="255" width="132" height="32" rx="16" fill="#101722" stroke="#243345"/>
+  <text x="670" y="276" class="text-secondary" style="font-size:12px;">排序：最新活动</text>
+  <rect x="1198" y="255" width="156" height="32" rx="16" fill="#101722" stroke="#2f4f6d"/>
+  <text x="1276" y="276" text-anchor="middle" class="text-secondary" style="font-size:12px;">批量动作 / 预留</text>
+
+  <rect x="142" y="326" width="1240" height="560" rx="24" class="panel-soft"/>
+  <text x="172" y="356" class="text-small">文件</text>
+  <text x="618" y="356" class="text-small">进度与状态</text>
+  <text x="874" y="356" class="text-small">实时速度</text>
+  <text x="1018" y="356" class="text-small">保存目录</text>
+  <text x="1280" y="356" class="text-small">操作</text>
+  <line x1="170" y1="372" x2="1354" y2="372" class="divider"/>
+
+  <g transform="translate(0,0)">
+    <rect x="160" y="388" width="1204" height="92" rx="18" fill="#132132" stroke="#28435e" filter="url(#glow)"/>
+    <rect x="178" y="409" width="46" height="46" rx="14" fill="#1a3147"/>
+    <path d="M201 420v18m-8-8 8 8 8-8" fill="none" stroke="#23c7ff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="244" y="421" class="text-primary">ubuntu-24.04-desktop-amd64.iso</text>
+    <text x="244" y="443" class="text-small">HTTP / mirrors.edge.kernel.org</text>
+
+    <rect x="610" y="414" width="188" height="10" rx="5" fill="#0e151f"/>
+    <rect x="610" y="414" width="138" height="10" rx="5" fill="url(#progress)"/>
+    <text x="610" y="447" class="text-small">RUNNING · 73% · 剩余 04m 16s</text>
+    <rect x="732" y="434" width="72" height="24" rx="12" class="chip-run"/>
+    <text x="768" y="450" text-anchor="middle" style="fill:#8ce6ff;font:700 11px 'JetBrains Mono','IBM Plex Sans',monospace;">ACTIVE</text>
+
+    <text x="874" y="424" class="text-mono">3.84 MB/s</text>
+    <text x="874" y="446" class="text-small">1.9 / 2.6 GB</text>
+
+    <text x="1018" y="424" class="text-secondary">D:\Downloads\Linux\ISO</text>
+    <text x="1018" y="446" class="text-small">最后活动 12:42:10</text>
+
+    <circle cx="1286" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1282 427v12l8-6z" fill="#23c7ff"/>
+    <circle cx="1328" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1324 428h8v10h-8z" fill="#9ec6e5"/>
+  </g>
+
+  <g transform="translate(0,104)">
+    <rect x="160" y="388" width="1204" height="92" rx="18" fill="#101822" stroke="#243446"/>
+    <rect x="178" y="409" width="46" height="46" rx="14" fill="#162534"/>
+    <circle cx="201" cy="432" r="11" fill="none" stroke="#27d980" stroke-width="2"/>
+    <path d="M195 432l4 4 8-8" fill="none" stroke="#27d980" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="244" y="421" class="text-primary">RimWorld.Ideology.v1.5.7z</text>
+    <text x="244" y="443" class="text-small">BT / magnet:?xt=urn:btih...</text>
+
+    <rect x="610" y="414" width="188" height="10" rx="5" fill="#0e151f"/>
+    <rect x="610" y="414" width="188" height="10" rx="5" fill="#1e2b35"/>
+    <text x="610" y="447" class="text-small">COMPLETED · 100% · 校验完成</text>
+    <rect x="732" y="434" width="88" height="24" rx="12" class="chip-done"/>
+    <text x="776" y="450" text-anchor="middle" style="fill:#8cf4bc;font:700 11px 'JetBrains Mono','IBM Plex Sans',monospace;">DONE</text>
+
+    <text x="874" y="424" class="text-mono">0 KB/s</text>
+    <text x="874" y="446" class="text-small">7.3 / 7.3 GB</text>
+
+    <text x="1018" y="424" class="text-secondary">E:\Games\Archive</text>
+    <text x="1018" y="446" class="text-small">完成于 11:08:42</text>
+
+    <circle cx="1286" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1282 427v12l8-6z" fill="#9ec6e5"/>
+    <circle cx="1328" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1323 428l10 10m0-10-10 10" stroke="#9ec6e5" stroke-width="1.8" stroke-linecap="round"/>
+  </g>
+
+  <g transform="translate(0,208)">
+    <rect x="160" y="388" width="1204" height="92" rx="18" fill="#101822" stroke="#243446"/>
+    <rect x="178" y="409" width="46" height="46" rx="14" fill="#162534"/>
+    <circle cx="201" cy="432" r="11" fill="none" stroke="#f7b84b" stroke-width="2"/>
+    <path d="M197 424v16m8-16v16" stroke="#f7b84b" stroke-width="2" stroke-linecap="round"/>
+    <text x="244" y="421" class="text-primary">archive-project-backup.zip</text>
+    <text x="244" y="443" class="text-small">HTTPS / cloud-storage.example.com</text>
+
+    <rect x="610" y="414" width="188" height="10" rx="5" fill="#0e151f"/>
+    <rect x="610" y="414" width="68" height="10" rx="5" fill="#f7b84b"/>
+    <text x="610" y="447" class="text-small">PAUSED · 36% · 用户手动暂停</text>
+    <rect x="730" y="434" width="88" height="24" rx="12" class="chip-pause"/>
+    <text x="774" y="450" text-anchor="middle" style="fill:#ffd591;font:700 11px 'JetBrains Mono','IBM Plex Sans',monospace;">PAUSED</text>
+
+    <text x="874" y="424" class="text-mono">0 KB/s</text>
+    <text x="874" y="446" class="text-small">13.1 / 36.0 GB</text>
+
+    <text x="1018" y="424" class="text-secondary">D:\Downloads\Backup</text>
+    <text x="1018" y="446" class="text-small">暂停于 12:39:15</text>
+
+    <circle cx="1286" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1282 427v12l8-6z" fill="#9ec6e5"/>
+    <circle cx="1328" cy="433" r="15" fill="#0f1a25" stroke="#2c4c69"/>
+    <path d="M1324 428h8v10h-8z" fill="#9ec6e5"/>
+  </g>
+
+  <rect x="142" y="904" width="1240" height="24" rx="12" fill="#101722" stroke="#243345"/>
+  <circle cx="164" cy="916" r="5" fill="#23c7ff"/>
+  <text x="178" y="921" class="text-small">实时连接稳定 · 最近事件 task.updated · 12:42:11</text>
+  <text x="1348" y="921" text-anchor="end" class="text-small">MoodDownload / Prototype Visual v1</text>
+</svg>

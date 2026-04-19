@@ -1,0 +1,182 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { deleteTask, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
+import { useTaskEvents } from "@/app/providers/TaskEventsProvider";
+import { useShell } from "@/domains/shell/hooks/useShell";
+import type { TaskDomainStatus, TaskListItem } from "@/domains/task/models/task";
+import { taskStore, useTaskStore } from "@/domains/task/store/task-store";
+import type { TaskRouteKey } from "@/shared/constants/navigation";
+
+const ACTION_FEEDBACK_DURATION_MS = 3600;
+
+interface TaskActionFeedbackItem {
+  message: string;
+  tone: "success" | "warning" | "danger";
+}
+
+function isTaskVisible(task: TaskListItem, viewKey: TaskRouteKey) {
+  if (viewKey === "running") {
+    return ["PENDING", "DISPATCHING", "RUNNING"].includes(task.domainStatus);
+  }
+  if (viewKey === "completed") {
+    return task.domainStatus === "COMPLETED";
+  }
+  if (viewKey === "paused") {
+    return task.domainStatus === "PAUSED";
+  }
+  return task.domainStatus === "FAILED";
+}
+
+function resolvePrimaryActionLabel(status: TaskDomainStatus | string) {
+  if (["RUNNING", "PENDING", "DISPATCHING"].includes(status)) {
+    return "暂停";
+  }
+  if (status === "PAUSED") {
+    return "继续";
+  }
+  if (status === "FAILED") {
+    return "重试";
+  }
+  return null;
+}
+
+export function useTaskCollection(viewKey: TaskRouteKey) {
+  const { lastEvent } = useTaskEvents();
+  const { pushToast, openTaskDetail } = useShell();
+  const taskState = useTaskStore();
+  const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
+  const [actionFeedbacks, setActionFeedbacks] = useState<Record<number, TaskActionFeedbackItem>>({});
+  const feedbackTimersRef = useRef<Record<number, number>>({});
+
+  async function reloadTasks(silent = false) {
+    await taskStore.reloadTasks({
+      silent,
+      reason: silent ? "route-silent-refresh" : "route-manual-refresh"
+    });
+  }
+
+  useEffect(() => {
+    void taskStore.ensureHydrated();
+  }, []);
+
+  useEffect(() => {
+    if (!lastEvent) {
+      return;
+    }
+    taskStore.applyTaskEvent(lastEvent);
+  }, [lastEvent?.timestamp]);
+
+  useEffect(() => {
+    return () => {
+      Object.values(feedbackTimersRef.current).forEach((timerId) => window.clearTimeout(timerId));
+    };
+  }, []);
+
+  /**
+   * 在任务行内展示短时操作反馈，减少暂停 / 继续 / 重试后频繁弹出全局 toast 的噪音。
+   *
+   * @param taskId 任务 ID
+   * @param feedback 反馈文案与语气
+   */
+  function showActionFeedback(taskId: number, feedback: TaskActionFeedbackItem) {
+    if (feedbackTimersRef.current[taskId]) {
+      window.clearTimeout(feedbackTimersRef.current[taskId]);
+    }
+
+    setActionFeedbacks((currentFeedbacks) => ({
+      ...currentFeedbacks,
+      [taskId]: feedback
+    }));
+
+    feedbackTimersRef.current[taskId] = window.setTimeout(() => {
+      setActionFeedbacks((currentFeedbacks) => {
+        const nextFeedbacks = { ...currentFeedbacks };
+        delete nextFeedbacks[taskId];
+        return nextFeedbacks;
+      });
+      delete feedbackTimersRef.current[taskId];
+    }, ACTION_FEEDBACK_DURATION_MS);
+  }
+
+  async function runPrimaryAction(task: TaskListItem) {
+    if (!["RUNNING", "PENDING", "DISPATCHING", "PAUSED", "FAILED"].includes(task.domainStatus)) {
+      openTaskDetail(task.taskId);
+      return;
+    }
+
+    try {
+      setBusyTaskId(task.taskId);
+      if (["RUNNING", "PENDING", "DISPATCHING"].includes(task.domainStatus)) {
+        const commandResult = await pauseTask(task.taskId);
+        taskStore.applyCommandResult(task.taskId, commandResult);
+        showActionFeedback(task.taskId, {
+          message: "暂停请求已提交，任务会在下一次同步后更新状态。",
+          tone: "warning"
+        });
+      } else if (task.domainStatus === "PAUSED") {
+        const commandResult = await resumeTask(task.taskId);
+        taskStore.applyCommandResult(task.taskId, commandResult);
+        showActionFeedback(task.taskId, {
+          message: "继续请求已提交，任务会回到下载队列。",
+          tone: "success"
+        });
+      } else if (task.domainStatus === "FAILED") {
+        const commandResult = await retryTask(task.taskId);
+        taskStore.applyCommandResult(task.taskId, commandResult);
+        showActionFeedback(task.taskId, {
+          message: "重试请求已提交，系统会重新拉起下载。",
+          tone: "success"
+        });
+      }
+    } catch (error) {
+      showActionFeedback(task.taskId, {
+        message: "操作失败，请稍后重试。",
+        tone: "danger"
+      });
+      pushToast(error instanceof Error ? error.message : "任务操作失败", "danger");
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  async function removeTask(task: TaskListItem) {
+    try {
+      setBusyTaskId(task.taskId);
+      await deleteTask(task.taskId, false);
+      taskStore.removeTask(task.taskId);
+      taskStore.scheduleSilentReload("delete-reconcile");
+      pushToast(`已删除任务：${task.displayName}`, "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "删除任务失败", "danger");
+    } finally {
+      setBusyTaskId(null);
+    }
+  }
+
+  const visibleTasks = useMemo(
+    () => taskState.items.filter((task) => isTaskVisible(task, viewKey)),
+    [taskState.items, viewKey]
+  );
+  const summary = {
+    totalTasks: taskState.total,
+    visibleTasks: visibleTasks.length,
+    activeTasks: taskState.items.filter((task) => ["PENDING", "DISPATCHING", "RUNNING"].includes(task.domainStatus))
+      .length,
+    totalSpeedBps: taskState.items.reduce((speed, task) => speed + (task.downloadSpeedBps || 0), 0)
+  };
+
+  return {
+    taskItems: taskState.items,
+    visibleTasks,
+    loading: taskState.loading || !taskState.initialized,
+    refreshing: taskState.refreshing,
+    errorMessage: taskState.errorMessage,
+    busyTaskId,
+    actionFeedbacks,
+    summary,
+    reloadTasks,
+    runPrimaryAction,
+    removeTask,
+    openTaskDetail,
+    resolvePrimaryActionLabel
+  };
+}

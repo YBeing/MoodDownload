@@ -1,0 +1,7 @@
+server:
+  port: ${LOCAL_SERVICE_PORT:18080}
+
+mooddownload:
+  security:
+    token: ${LOCAL_SERVICE_TOKEN:dev-local-token}
+
