@@ -245,6 +245,51 @@ npm run dist:win
 
 - [desktop-app/electron/main.cjs](/Users/lying/IdeaProjects/moodDownload/desktop-app/electron/main.cjs)
 
+### 9.3 Windows 11 安装后启动即报 `The argument 'stdio' is invalid`
+
+现象：
+
+- 安装完成后首次启动，立即弹窗报错
+- 报错信息包含 `The argument 'stdio' is invalid. Received WriteStream`
+
+根因：
+
+- 打包模式下，`Electron main` 曾直接将 `fs.createWriteStream(...)` 传入 `spawn(..., { stdio })`
+- 在 `Windows 11 + Electron/Node` 的安装包运行场景中，这种写法会被判定为非法 `stdio` 参数
+
+当前修复：
+
+- [desktop-app/electron/main.cjs](/Users/lying/IdeaProjects/moodDownload/desktop-app/electron/main.cjs) 已改为 `stdio: ["ignore", "pipe", "pipe"]`
+- 子进程 `stdout/stderr` 改为启动后再手动 `pipe` 到日志文件
+
+后续规则：
+
+- 不要再把 `WriteStream` 实例直接传给 `spawn` 的 `stdio`
+- 如果后续继续调整日志落盘方案，必须保留“先 `pipe`，再写文件”的实现方式
+
+### 9.4 Windows 11 启动时报 `等待 aria2 RPC 启动超时`
+
+现象：
+
+- 安装包启动时弹出 `等待 aria2 RPC 启动超时`
+- 界面尚未进入主页面，应用直接停在启动失败阶段
+
+高概率原因：
+
+- 首次安装时 `aria2/session.txt` 尚未创建
+- 启动参数中又包含 `--input-file=<session 文件>`，导致 `aria2` 进程提前退出
+- 上层只看到 RPC 一直未 ready，最终表现为超时
+
+当前修复：
+
+- [desktop-app/electron/main.cjs](/Users/lying/IdeaProjects/moodDownload/desktop-app/electron/main.cjs) 在构造运行时状态时，已先确保 `aria2/session.txt` 存在
+- `waitForAria2Ready(...)` 已补充“`aria2` 提前退出”检测，避免继续以泛化超时掩盖真实原因
+
+后续规则：
+
+- 只要保留 `--input-file` / `--save-session`，就必须同步保证 session 文件在首次启动前已创建
+- 如果后续修改 `aria2` 工作目录或 session 文件名，必须同步更新初始化逻辑和本文档
+
 ## 10. 运行日志定位
 
 打包模式下，`Electron` 已经把内置子进程日志落盘。
@@ -264,6 +309,8 @@ npm run dist:win
 
 - 应用能打开，但创建任务时报 `aria2 RPC 调用失败`
 - 启动时弹出“内置运行时启动失败”
+- 启动时弹出 `The argument 'stdio' is invalid`
+- 启动时弹出 `等待 aria2 RPC 启动超时`
 - 设置能打开，但下载相关接口全部失败
 
 ### 10.3 推荐排查顺序
@@ -271,6 +318,11 @@ npm run dist:win
 1. 先看 `aria2-stderr.log`
 2. 再看 `local-service-stderr.log`
 3. 如果是前端白屏或界面异常，再结合 `Electron` 控制台或重新本地跑 `npm run dev`
+
+补充说明：
+
+- `Windows 11` 上如果弹出 `The argument 'stdio' is invalid`，优先回看是否误把 `WriteStream` 直接传回了 `spawn(..., { stdio })`
+- 如果弹出 `等待 aria2 RPC 启动超时`，优先检查 `aria2-stderr.log` 中是否有 `input-file`、session 文件不存在、端口监听失败等信息
 
 ## 11. 常见命令组合
 
@@ -309,6 +361,8 @@ npm run dist:win
 3. 不要绕过 `prepare-win-runtime.mjs` 手工塞资源，除非同步回写脚本。
 4. 不要擅自修改 `aria2` 的生产默认参数来源，必须继续以 `5.2 生产默认模板` 为准。
 5. 如果改了安装包运行目录、日志目录、资源目录，必须同步更新本文档。
+6. 如果调整受托管子进程日志方案，不要把 `WriteStream` 直接传给 `spawn(..., { stdio })`。
+7. 如果保留 `aria2` 的 `--input-file` / `--save-session` 参数，必须同步保留 session 文件预创建逻辑。
 
 ## 13. 当前文档对应的已验证结果
 
@@ -325,4 +379,3 @@ npm run dist:win
 并已成功生成：
 
 - `release/MoodDownload-Setup-0.0.1-x64.exe`
-

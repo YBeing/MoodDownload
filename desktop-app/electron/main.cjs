@@ -258,6 +258,19 @@ function ensureDirectory(directoryPath) {
 }
 
 /**
+ * 确保运行时文件存在；首次安装时需要先创建 aria2 session 文件，避免 input-file 指向不存在路径导致进程退出。
+ *
+ * @param {string} filePath 文件路径
+ */
+function ensureFileExists(filePath) {
+  if (fs.existsSync(filePath)) {
+    return;
+  }
+  ensureDirectory(path.dirname(filePath));
+  fs.closeSync(fs.openSync(filePath, "a"));
+}
+
+/**
  * 生成高熵密钥，供本地服务令牌和 aria2 rpc-secret 使用。
  *
  * @returns {string}
@@ -338,6 +351,11 @@ async function waitForLocalServiceReady(serviceUrl, timeoutMillis) {
 async function waitForAria2Ready(aria2RpcPort, aria2Secret, timeoutMillis) {
   const deadline = Date.now() + timeoutMillis;
   while (Date.now() < deadline) {
+    if (managedAria2Process && managedAria2Process.exitCode !== null) {
+      const logHint = app.isPackaged ? `，请检查日志：${resolveManagedLogPath("aria2-stderr")}` : "";
+      throw new Error(`aria2 进程已提前退出${logHint}`);
+    }
+
     const ready = await new Promise((resolve) => {
       const requestBody = JSON.stringify({
         id: `aria2-ready-${Date.now()}`,
@@ -447,8 +465,17 @@ function startManagedProcess(command, args, env, label) {
     env,
     cwd: app.isPackaged ? app.getPath("userData") : process.cwd(),
     windowsHide: true,
-    stdio: app.isPackaged ? ["ignore", packagedStdout, packagedStderr] : "inherit"
+    stdio: app.isPackaged ? ["ignore", "pipe", "pipe"] : "inherit"
   });
+
+  /**
+   * 打包模式下将子进程输出转存到用户目录日志文件，避免 Windows 安装包直接传 WriteStream 给 stdio 报错。
+   */
+  if (app.isPackaged) {
+    childProcess.stdout?.pipe(packagedStdout);
+    childProcess.stderr?.pipe(packagedStderr);
+  }
+
   childProcess.on("exit", (code, signal) => {
     packagedStdout?.end();
     packagedStderr?.end();
@@ -483,11 +510,14 @@ async function buildManagedRuntimeState() {
   ensureDirectory(downloadDir);
   ensureDirectory(aria2WorkDir);
 
+  const aria2SessionFile = path.join(aria2WorkDir, "session.txt");
+  ensureFileExists(aria2SessionFile);
+
   return {
     userDataDir,
     downloadDir,
     aria2WorkDir,
-    aria2SessionFile: path.join(aria2WorkDir, "session.txt"),
+    aria2SessionFile,
     dbPath: path.join(userDataDir, "mooddownload-local.db"),
     localServicePort: await findAvailablePort(DEFAULT_LOCAL_SERVICE_PORT),
     aria2RpcPort: await findAvailablePort(DEFAULT_ARIA2_RPC_PORT),
