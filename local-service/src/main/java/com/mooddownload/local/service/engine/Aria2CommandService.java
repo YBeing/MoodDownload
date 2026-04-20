@@ -57,13 +57,19 @@ public class Aria2CommandService {
             engineGid = aria2RpcClient.addTorrent(
                 downloadTaskModel.getTorrentFilePath(),
                 downloadTaskModel.getSaveDir(),
-                resolveOutFile(downloadTaskModel)
+                resolveTorrentOutFile(downloadTaskModel)
+            );
+        } else if (taskSourceType == TaskSourceType.HTTP || taskSourceType == TaskSourceType.HTTPS) {
+            engineGid = aria2RpcClient.addUri(
+                downloadTaskModel.getSourceUri(),
+                downloadTaskModel.getSaveDir(),
+                null
             );
         } else {
             engineGid = aria2RpcClient.addUri(
                 downloadTaskModel.getSourceUri(),
                 downloadTaskModel.getSaveDir(),
-                resolveOutFile(downloadTaskModel)
+                resolveTorrentOutFile(downloadTaskModel)
             );
         }
         LOGGER.info("提交下载到 aria2 成功: taskId={}, taskCode={}, gid={}",
@@ -148,7 +154,16 @@ public class Aria2CommandService {
         }
     }
 
-    private String resolveOutFile(DownloadTaskModel downloadTaskModel) {
+    /**
+     * 仅为种子任务指定输出文件名。
+     *
+     * <p>HTTP/HTTPS 下载如果显式透传 displayName，会覆盖 aria2 基于 URL 或 Content-Disposition
+     * 推导出来的真实文件名，进而导致扩展名丢失。因此 URI 下载统一交给 aria2 自行解析。
+     *
+     * @param downloadTaskModel 下载任务
+     * @return 种子任务输出文件名
+     */
+    private String resolveTorrentOutFile(DownloadTaskModel downloadTaskModel) {
         return StringUtils.hasText(downloadTaskModel.getDisplayName())
             ? downloadTaskModel.getDisplayName()
             : downloadTaskModel.getTaskCode();

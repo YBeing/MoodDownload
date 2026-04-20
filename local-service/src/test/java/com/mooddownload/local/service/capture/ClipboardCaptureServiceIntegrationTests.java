@@ -46,7 +46,7 @@ class ClipboardCaptureServiceIntegrationTests {
         when(aria2RpcClient.addUri(
             "https://example.com/archive/demo.zip",
             "./downloads",
-            "demo-from-clipboard.zip"
+            null
         )).thenReturn("gid-clipboard-1");
 
         ClipboardCaptureCommand clipboardCaptureCommand = new ClipboardCaptureCommand();

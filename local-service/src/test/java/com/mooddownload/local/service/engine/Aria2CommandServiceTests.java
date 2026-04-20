@@ -29,11 +29,11 @@ class Aria2CommandServiceTests {
     @Test
     void shouldCreateHttpDownloadViaAddUri() {
         DownloadTaskModel downloadTaskModel = buildHttpTask();
-        when(aria2RpcClient.addUri("https://example.com/file.iso", "./downloads", "file.iso"))
+        when(aria2RpcClient.addUri("https://example.com/file.iso", "./downloads", null))
             .thenReturn("gid-http");
 
         assertThat(aria2CommandService.createDownload(downloadTaskModel).getEngineGid()).isEqualTo("gid-http");
-        verify(aria2RpcClient).addUri("https://example.com/file.iso", "./downloads", "file.iso");
+        verify(aria2RpcClient).addUri("https://example.com/file.iso", "./downloads", null);
     }
 
     @Test
@@ -44,6 +44,17 @@ class Aria2CommandServiceTests {
 
         assertThat(aria2CommandService.createDownload(downloadTaskModel).getEngineGid()).isEqualTo("gid-torrent");
         verify(aria2RpcClient).addTorrent("/tmp/file.torrent", "./downloads", "file.iso");
+    }
+
+    @Test
+    void shouldIgnoreDisplayNameForHttpsOutFile() {
+        DownloadTaskModel downloadTaskModel = buildHttpTask();
+        downloadTaskModel.setDisplayName("自定义安装包");
+        when(aria2RpcClient.addUri("https://example.com/file.iso", "./downloads", null))
+            .thenReturn("gid-http-custom");
+
+        assertThat(aria2CommandService.createDownload(downloadTaskModel).getEngineGid()).isEqualTo("gid-http-custom");
+        verify(aria2RpcClient).addUri("https://example.com/file.iso", "./downloads", null);
     }
 
     @Test

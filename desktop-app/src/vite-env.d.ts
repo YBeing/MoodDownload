@@ -21,6 +21,7 @@ interface MoodDownloadBridge {
   runtime: MoodDownloadRuntimeConfig;
   app: {
     getRuntimeConfig: () => Promise<MoodDownloadRuntimeConfig>;
+    pickDirectory: (defaultPath?: string) => Promise<string | null>;
   };
   clipboard: {
     readText: () => string;

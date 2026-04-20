@@ -61,6 +61,24 @@ export function SettingsPage() {
     setConfig((currentConfig) => (currentConfig ? { ...currentConfig, [key]: value } : currentConfig));
   }
 
+  async function selectDefaultSaveDir() {
+    if (!config) {
+      return;
+    }
+    if (!window.moodDownloadBridge?.app.pickDirectory) {
+      pushToast("当前环境不支持目录选择器", "warning");
+      return;
+    }
+    try {
+      const selectedDirectory = await window.moodDownloadBridge.app.pickDirectory(config.defaultSaveDir || undefined);
+      if (selectedDirectory) {
+        updateField("defaultSaveDir", selectedDirectory);
+      }
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "打开目录选择器失败", "danger");
+    }
+  }
+
   async function submitConfig() {
     if (!config) {
       return;
@@ -130,11 +148,17 @@ export function SettingsPage() {
               <div className="settings-form">
                 <label className="settings-field">
                   <span>默认下载目录</span>
-                  <input
-                    className="field"
-                    onChange={(event) => updateField("defaultSaveDir", event.target.value)}
-                    value={config.defaultSaveDir}
-                  />
+                  <div className="folder-picker">
+                    <input className="field folder-picker__input" readOnly value={config.defaultSaveDir} />
+                    <button
+                      className="button-ghost folder-picker__button"
+                      disabled={saving}
+                      onClick={() => void selectDefaultSaveDir()}
+                      type="button"
+                    >
+                      选择文件夹
+                    </button>
+                  </div>
                 </label>
 
                 <label className="settings-field">

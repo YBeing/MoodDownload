@@ -12,7 +12,8 @@ const runtimeConfig = {
 contextBridge.exposeInMainWorld("moodDownloadBridge", {
   runtime: runtimeConfig,
   app: {
-    getRuntimeConfig: () => ipcRenderer.invoke("app:getRuntimeConfig")
+    getRuntimeConfig: () => ipcRenderer.invoke("app:getRuntimeConfig"),
+    pickDirectory: (defaultPath) => ipcRenderer.invoke("app:pickDirectory", defaultPath)
   },
   clipboard: {
     readText: () => clipboard.readText()

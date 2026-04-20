@@ -57,7 +57,7 @@ class ExtensionCaptureControllerIntegrationTests {
         when(aria2RpcClient.addUri(
             "https://example.com/files/demo.iso",
             "./downloads",
-            "demo-from-browser.iso"
+            null
         )).thenReturn("gid-extension-1");
 
         MvcResult firstResult = mockMvc.perform(post("/api/extension/capture")

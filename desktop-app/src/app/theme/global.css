@@ -711,6 +711,21 @@ a {
   gap: 8px;
 }
 
+.folder-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.folder-picker__input {
+  min-width: 0;
+}
+
+.folder-picker__button {
+  white-space: nowrap;
+}
+
 .settings-grid {
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
 }

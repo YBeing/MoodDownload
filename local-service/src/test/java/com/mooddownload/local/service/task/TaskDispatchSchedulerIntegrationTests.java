@@ -53,7 +53,7 @@ class TaskDispatchSchedulerIntegrationTests {
     void shouldDispatchPendingTaskToRunning() {
         Long taskId = seedPendingTask("request-dispatch-success");
         when(aria2RpcClient.addUri("https://example.com/request-dispatch-success.iso", "./downloads",
-            "request-dispatch-success.iso")).thenReturn("gid-success");
+            null)).thenReturn("gid-success");
 
         taskDispatchScheduler.dispatchPendingTasks();
 
@@ -76,7 +76,7 @@ class TaskDispatchSchedulerIntegrationTests {
     void shouldFallbackToPendingWhenAria2CallFails() {
         Long taskId = seedPendingTask("request-dispatch-failed");
         when(aria2RpcClient.addUri("https://example.com/request-dispatch-failed.iso", "./downloads",
-            "request-dispatch-failed.iso")).thenThrow(
+            null)).thenThrow(
                 new BizException(ErrorCode.EXTERNAL_ENGINE_ERROR, "aria2 unavailable")
             );
 

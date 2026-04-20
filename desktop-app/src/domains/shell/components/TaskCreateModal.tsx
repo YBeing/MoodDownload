@@ -140,6 +140,21 @@ export function TaskCreateModal() {
     }));
   }
 
+  async function selectSaveDir() {
+    if (!window.moodDownloadBridge?.app.pickDirectory) {
+      pushToast("当前环境不支持目录选择器", "warning");
+      return;
+    }
+    try {
+      const selectedDirectory = await window.moodDownloadBridge.app.pickDirectory(formState.saveDir.trim() || undefined);
+      if (selectedDirectory) {
+        updateFormState("saveDir", selectedDirectory);
+      }
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "打开目录选择器失败", "danger");
+    }
+  }
+
   async function submitTask() {
     const validationMessage = resolveValidationMessage(mode, formState);
     if (validationMessage) {
@@ -289,12 +304,22 @@ export function TaskCreateModal() {
 
           <label className="settings-field">
             <span>保存目录</span>
-            <input
-              className="field"
-              onChange={(event) => updateFormState("saveDir", event.target.value)}
-              placeholder={loadingDefaultDir ? "正在读取默认下载目录..." : "留空则使用默认下载目录"}
-              value={formState.saveDir}
-            />
+            <div className="folder-picker">
+              <input
+                className="field folder-picker__input"
+                placeholder={loadingDefaultDir ? "正在读取默认下载目录..." : "留空则使用默认下载目录"}
+                readOnly
+                value={formState.saveDir}
+              />
+              <button
+                className="button-ghost folder-picker__button"
+                disabled={loadingDefaultDir || submitting}
+                onClick={() => void selectSaveDir()}
+                type="button"
+              >
+                选择文件夹
+              </button>
+            </div>
             <span>{loadingDefaultDir ? "正在从设置页同步默认下载目录..." : "留空时由后端回退到默认目录"}</span>
           </label>
 

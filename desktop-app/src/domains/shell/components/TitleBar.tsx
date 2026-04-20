@@ -34,8 +34,7 @@ function resolveStreamBadge(status: TaskStreamStatus) {
 }
 
 export function TitleBar() {
-  const { openCreateTask, windowState, minimizeWindow, toggleWindowMaximize, closeWindow, minimizeToTray } =
-    useShell();
+  const { openCreateTask, windowState } = useShell();
   const { status } = useTaskEvents();
   const streamBadge = resolveStreamBadge(status);
 
@@ -57,24 +56,6 @@ export function TitleBar() {
         <button className="button" onClick={() => openCreateTask()} type="button">
           新建任务
         </button>
-        <button className="button-ghost" onClick={() => void minimizeToTray()} type="button">
-          最小化到托盘
-        </button>
-        <div className="window-controls">
-          <button className="button-ghost" onClick={() => void minimizeWindow()} type="button">
-            —
-          </button>
-          <button
-            className="button-ghost"
-            onClick={() => void toggleWindowMaximize()}
-            type="button"
-          >
-            {windowState.isMaximized ? "❐" : "□"}
-          </button>
-          <button className="button-danger" onClick={() => void closeWindow()} type="button">
-            ✕
-          </button>
-        </div>
       </div>
     </header>
   );

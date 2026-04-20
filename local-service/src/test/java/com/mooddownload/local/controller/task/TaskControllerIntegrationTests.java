@@ -60,7 +60,7 @@ class TaskControllerIntegrationTests {
 
     @Test
     void shouldCreateTaskAndQueryTaskApis() throws Exception {
-        when(aria2RpcClient.addUri("https://example.com/demo.iso", "./downloads", "demo.iso"))
+        when(aria2RpcClient.addUri("https://example.com/demo.iso", "./downloads", null))
             .thenReturn("gid-api-create");
 
         mockMvc.perform(post("/api/tasks")
@@ -294,12 +294,12 @@ class TaskControllerIntegrationTests {
         when(aria2RpcClient.addUri(
             "https://example.com/request-api-running.iso",
             tempDownloadDir.toString(),
-            "request-api-running.iso"
+            null
         )).thenReturn("gid-api-running-resume");
         when(aria2RpcClient.addUri(
             "https://example.com/request-api-failed.iso",
             tempDownloadDir.toString(),
-            "request-api-failed.iso"
+            null
         )).thenReturn("gid-api-failed-retry");
         when(aria2RpcClient.remove("gid-api-failed-retry")).thenReturn("gid-api-failed-retry");
 
