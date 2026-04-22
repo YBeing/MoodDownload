@@ -29,6 +29,21 @@ public class CreateTaskCommand {
     /** 最大重试次数 */
     private Integer maxRetryCount;
 
+    /** 任务入口类型 */
+    private String entryType;
+
+    /** 来源 Provider 编码 */
+    private String sourceProvider;
+
+    /** 来源站点 Host */
+    private String sourceSiteHost;
+
+    /** 入口上下文 JSON */
+    private String entryContextJson;
+
+    /** 引擎配置模板编码 */
+    private String engineProfileCode;
+
     /** 调用方类型 */
     private String clientType;
 
@@ -94,6 +109,46 @@ public class CreateTaskCommand {
 
     public void setMaxRetryCount(Integer maxRetryCount) {
         this.maxRetryCount = maxRetryCount;
+    }
+
+    public String getEntryType() {
+        return entryType;
+    }
+
+    public void setEntryType(String entryType) {
+        this.entryType = entryType;
+    }
+
+    public String getSourceProvider() {
+        return sourceProvider;
+    }
+
+    public void setSourceProvider(String sourceProvider) {
+        this.sourceProvider = sourceProvider;
+    }
+
+    public String getSourceSiteHost() {
+        return sourceSiteHost;
+    }
+
+    public void setSourceSiteHost(String sourceSiteHost) {
+        this.sourceSiteHost = sourceSiteHost;
+    }
+
+    public String getEntryContextJson() {
+        return entryContextJson;
+    }
+
+    public void setEntryContextJson(String entryContextJson) {
+        this.entryContextJson = entryContextJson;
+    }
+
+    public String getEngineProfileCode() {
+        return engineProfileCode;
+    }
+
+    public void setEngineProfileCode(String engineProfileCode) {
+        this.engineProfileCode = engineProfileCode;
     }
 
     public String getClientType() {

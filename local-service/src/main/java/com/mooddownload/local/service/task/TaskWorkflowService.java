@@ -4,9 +4,16 @@ import com.mooddownload.local.service.engine.Aria2CommandService;
 import com.mooddownload.local.service.task.model.CreateTaskCommand;
 import com.mooddownload.local.service.task.model.DownloadEngineTaskModel;
 import com.mooddownload.local.service.task.model.DownloadTaskModel;
+import com.mooddownload.local.service.task.model.TaskDeleteMode;
+import com.mooddownload.local.service.task.model.TaskDeletionPreview;
+import com.mooddownload.local.service.task.model.TaskFileCleanupPlan;
+import com.mooddownload.local.service.task.model.TaskFileCleanupResult;
+import com.mooddownload.local.service.task.model.TaskOpenContextModel;
 import com.mooddownload.local.service.task.model.TaskOperationResult;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -32,13 +39,16 @@ public class TaskWorkflowService {
 
     private final TaskEventPublisher taskEventPublisher;
 
+    private final com.mooddownload.local.dal.task.TaskDeletionLogRepository taskDeletionLogRepository;
+
     public TaskWorkflowService(
         TaskCommandService taskCommandService,
         TaskQueryService taskQueryService,
         TaskDispatchScheduler taskDispatchScheduler,
         TaskFileCleanupService taskFileCleanupService,
         Aria2CommandService aria2CommandService,
-        TaskEventPublisher taskEventPublisher
+        TaskEventPublisher taskEventPublisher,
+        com.mooddownload.local.dal.task.TaskDeletionLogRepository taskDeletionLogRepository
     ) {
         this.taskCommandService = taskCommandService;
         this.taskQueryService = taskQueryService;
@@ -46,6 +56,7 @@ public class TaskWorkflowService {
         this.taskFileCleanupService = taskFileCleanupService;
         this.aria2CommandService = aria2CommandService;
         this.taskEventPublisher = taskEventPublisher;
+        this.taskDeletionLogRepository = taskDeletionLogRepository;
     }
 
     /**
@@ -112,13 +123,50 @@ public class TaskWorkflowService {
      * @param removeFiles 是否删除本地文件
      * @return 删除执行结果
      */
-    public TaskDeleteExecutionResult deleteTask(Long taskId, boolean removeFiles) {
+    public TaskDeleteExecutionResult deleteTask(Long taskId, TaskDeleteMode deleteMode) {
         DownloadTaskModel currentTask = taskQueryService.getTaskById(taskId);
         removeFromEngineIfNecessary(currentTask);
         TaskOperationResult taskOperationResult = taskCommandService.cancelTask(taskId);
         publishTaskEventIfNecessary(taskOperationResult);
-        boolean filesRemoved = removeFiles && taskFileCleanupService.cleanupTaskFiles(currentTask);
-        return new TaskDeleteExecutionResult(refreshTaskOperationResult(taskOperationResult), filesRemoved);
+        TaskFileCleanupResult cleanupResult = taskFileCleanupService.cleanupTaskFiles(currentTask, deleteMode);
+        persistDeletionLog(currentTask, deleteMode, cleanupResult);
+        return new TaskDeleteExecutionResult(
+            refreshTaskOperationResult(taskOperationResult),
+            deleteMode,
+            cleanupResult.isOutputRemoved(),
+            cleanupResult.isArtifactRemoved(),
+            cleanupResult.isPartialSuccess()
+        );
+    }
+
+    /**
+     * 预览任务删除影响。
+     *
+     * @param taskId 任务 ID
+     * @param deleteMode 删除模式
+     * @return 删除预览
+     */
+    public TaskDeletionPreview previewDeletion(Long taskId, TaskDeleteMode deleteMode) {
+        DownloadTaskModel currentTask = taskQueryService.getTaskById(taskId);
+        TaskFileCleanupPlan cleanupPlan = taskFileCleanupService.previewCleanupPlan(currentTask, deleteMode);
+        TaskDeletionPreview preview = new TaskDeletionPreview();
+        preview.setTaskId(taskId);
+        preview.setDeleteMode(deleteMode);
+        preview.setTargets(cleanupPlan.getAllTargets().stream().map(java.nio.file.Path::toString).collect(Collectors.toList()));
+        preview.setWarnings(buildDeletionWarnings(currentTask, deleteMode, cleanupPlan));
+        preview.setRemovable(Boolean.TRUE);
+        return preview;
+    }
+
+    /**
+     * 获取打开文件夹上下文。
+     *
+     * @param taskId 任务 ID
+     * @return 打开上下文
+     */
+    public TaskOpenContextModel getOpenContext(Long taskId) {
+        DownloadTaskModel currentTask = taskQueryService.getTaskById(taskId);
+        return taskFileCleanupService.resolveOpenContext(currentTask);
     }
 
     private TaskOperationResult refreshTaskOperationResult(TaskOperationResult taskOperationResult) {
@@ -164,5 +212,44 @@ public class TaskWorkflowService {
             LOGGER.info("删除任务前已移除 aria2 任务: taskId={}, gid={}",
                 downloadTaskModel.getId(), engineGid);
         }
+    }
+
+    private List<String> buildDeletionWarnings(
+        DownloadTaskModel currentTask,
+        TaskDeleteMode deleteMode,
+        TaskFileCleanupPlan cleanupPlan
+    ) {
+        java.util.List<String> warnings = new java.util.ArrayList<String>();
+        if (deleteMode == TaskDeleteMode.TASK_ONLY) {
+            warnings.add("仅删除任务记录，磁盘文件会保留");
+        }
+        if (!cleanupPlan.getOutputTargets().isEmpty()) {
+            warnings.add("将尝试删除已下载输出文件");
+        }
+        if (!cleanupPlan.getArtifactTargets().isEmpty()) {
+            warnings.add("将尝试删除种子等关联工件");
+        }
+        if ("RUNNING".equals(currentTask.getDomainStatus())) {
+            warnings.add("任务正在运行，删除前会先从 aria2 移除");
+        }
+        return warnings;
+    }
+
+    private void persistDeletionLog(
+        DownloadTaskModel currentTask,
+        TaskDeleteMode deleteMode,
+        TaskFileCleanupResult cleanupResult
+    ) {
+        com.mooddownload.local.mapper.task.TaskDeletionLogDO deletionLogDO =
+            new com.mooddownload.local.mapper.task.TaskDeletionLogDO();
+        deletionLogDO.setTaskId(currentTask.getId());
+        deletionLogDO.setDeleteMode(deleteMode.name());
+        deletionLogDO.setOutputRemoved(cleanupResult.isOutputRemoved() ? 1 : 0);
+        deletionLogDO.setArtifactRemoved(cleanupResult.isArtifactRemoved() ? 1 : 0);
+        deletionLogDO.setRecycleBinUsed(0);
+        deletionLogDO.setResultStatus(cleanupResult.isPartialSuccess() ? "PARTIAL_SUCCESS" : "SUCCESS");
+        deletionLogDO.setOperatorSource("USER");
+        deletionLogDO.setCreatedAt(System.currentTimeMillis());
+        taskDeletionLogRepository.insert(deletionLogDO);
     }
 }

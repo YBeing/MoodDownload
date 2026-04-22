@@ -1,0 +1,93 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "PingFang SC", sans-serif;
+  background: #101820;
+  color: #edf4f7;
+}
+
+.panel {
+  width: 360px;
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.panel-wide {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(27, 40, 52, 0.96), rgba(16, 24, 32, 0.98));
+}
+
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7fbbc6;
+}
+
+.kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.button {
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 0;
+  background: linear-gradient(135deg, #20c7ff, #3de4b3);
+  color: #071218;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.button-ghost {
+  background: rgba(255, 255, 255, 0.06);
+  color: #edf4f7;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.muted {
+  color: #a4b8c0;
+  line-height: 1.5;
+}

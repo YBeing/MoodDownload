@@ -5,6 +5,7 @@ interface TaskTableProps {
   actionFeedbacks: Record<number, { message: string; tone: "success" | "warning" | "danger" }>;
   items: TaskListItem[];
   busyTaskId: number | null;
+  onOpenFolder: (task: TaskListItem) => void;
   onOpenDetail: (taskId: number) => void;
   onPrimaryAction: (task: TaskListItem) => void;
   onDelete: (task: TaskListItem) => void;
@@ -84,6 +85,11 @@ export function TaskTable(props: TaskTableProps) {
                 <button className="button-ghost" onClick={() => props.onOpenDetail(task.taskId)} type="button">
                   详情
                 </button>
+                {task.domainStatus === "COMPLETED" ? (
+                  <button className="button-ghost" onClick={() => props.onOpenFolder(task)} type="button">
+                    打开文件夹
+                  </button>
+                ) : null}
                 <button
                   className="button-danger"
                   disabled={isBusy}

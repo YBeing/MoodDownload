@@ -1,10 +1,47 @@
 import { useEffect, useState } from "react";
 import { useCapture } from "@/domains/capture/store/capture-context";
-import { getDownloadConfig, updateDownloadConfig } from "@/domains/config/api/configApi";
-import type { DownloadConfig, UpdateDownloadConfigPayload } from "@/domains/config/models/config";
-import { CaptureReadinessPanel } from "@/domains/capture/components/CaptureReadinessPanel";
+import {
+  getDownloadConfig,
+  getEngineRuntimeSnapshot,
+  listTrackerSets,
+  updateDownloadConfig,
+  updateEngineRuntimeProfile,
+  updateTrackerSet
+} from "@/domains/config/api/configApi";
+import { Aria2RestartConfirmDialog } from "@/domains/config/components/Aria2RestartConfirmDialog";
+import { Aria2SettingsSection } from "@/domains/config/components/Aria2SettingsSection";
+import { BaiduPanSettingsSection } from "@/domains/config/components/BaiduPanSettingsSection";
+import { BasicSettingsSection } from "@/domains/config/components/BasicSettingsSection";
+import type { BtTrackerSet, DownloadConfig, EngineRuntimeSnapshot, UpdateDownloadConfigPayload } from "@/domains/config/models/config";
+import { getDefaultAria2Command, buildAria2Command, parseAria2Command } from "@/domains/config/utils/aria2Command";
+import { preflightBaiduPan, resolveBaiduPan } from "@/domains/provider/api/providerApi";
+import type { BaiduPanPreflightResult, BaiduPanResolveResult } from "@/domains/provider/models/provider";
 import { useShell } from "@/domains/shell/hooks/useShell";
-import { formatDateTime } from "@/shared/utils/formatters";
+
+type SettingsTabKey = "basic" | "aria2" | "baidupan";
+
+interface PendingAria2RestartPayload {
+  profileJson: string;
+  trackerListText: string;
+}
+
+const SETTINGS_TABS: Array<{ key: SettingsTabKey; label: string; description: string }> = [
+  {
+    key: "basic",
+    label: "基础配置",
+    description: "下载目录、并发限制、浏览器接管和剪贴板监听。"
+  },
+  {
+    key: "aria2",
+    label: "aria2 配置",
+    description: "只保留 aria2 启动命令，并支持保存后按需重启引擎。"
+  },
+  {
+    key: "baidupan",
+    label: "百度网盘配置",
+    description: "预研入口和后续待实现的网盘能力。"
+  }
+];
 
 function buildPayload(config: DownloadConfig): UpdateDownloadConfigPayload {
   return {
@@ -13,7 +50,23 @@ function buildPayload(config: DownloadConfig): UpdateDownloadConfigPayload {
     maxGlobalDownloadSpeed: Number(config.maxGlobalDownloadSpeed),
     maxGlobalUploadSpeed: Number(config.maxGlobalUploadSpeed),
     browserCaptureEnabled: Boolean(config.browserCaptureEnabled),
-    clipboardMonitorEnabled: Boolean(config.clipboardMonitorEnabled)
+    clipboardMonitorEnabled: Boolean(config.clipboardMonitorEnabled),
+    activeEngineProfileCode: config.activeEngineProfileCode,
+    deleteToRecycleBinEnabled: Boolean(config.deleteToRecycleBinEnabled)
+  };
+}
+
+function resolveTrackerSetCode(snapshot: EngineRuntimeSnapshot | null, trackerSets: BtTrackerSet[], profileCode: string) {
+  const activeProfile = snapshot?.profiles.find((profile) => profile.profileCode === profileCode);
+  return activeProfile?.trackerSetCode || trackerSets[0]?.trackerSetCode || "builtin-default";
+}
+
+function buildTrackerPayload(trackerSets: BtTrackerSet[], trackerSetCode: string, trackerListText: string) {
+  const matchedTrackerSet = trackerSets.find((trackerSet) => trackerSet.trackerSetCode === trackerSetCode);
+  return {
+    trackerSetName: matchedTrackerSet?.trackerSetName || "内置默认 Tracker",
+    trackerListText,
+    sourceUrl: matchedTrackerSet?.sourceUrl || undefined
   };
 }
 
@@ -21,10 +74,34 @@ export function SettingsPage() {
   const { pushToast } = useShell();
   const { syncConfig } = useCapture();
   const [config, setConfig] = useState<DownloadConfig | null>(null);
+  const [runtimeSnapshot, setRuntimeSnapshot] = useState<EngineRuntimeSnapshot | null>(null);
+  const [trackerSets, setTrackerSets] = useState<BtTrackerSet[]>([]);
+  const [selectedProfileCode, setSelectedProfileCode] = useState("");
+  const [aria2Command, setAria2Command] = useState(getDefaultAria2Command());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [baiduShareUrl, setBaiduShareUrl] = useState("");
+  const [baiduAuthContext, setBaiduAuthContext] = useState("");
+  const [baiduProviderContext, setBaiduProviderContext] = useState("");
+  const [baiduPreflightResult, setBaiduPreflightResult] = useState<BaiduPanPreflightResult | null>(null);
+  const [baiduResolveResult, setBaiduResolveResult] = useState<BaiduPanResolveResult | null>(null);
+  const [checkingBaiduPan, setCheckingBaiduPan] = useState(false);
+  const [resolvingBaiduPan, setResolvingBaiduPan] = useState(false);
+  const [activeTab, setActiveTab] = useState<SettingsTabKey>("basic");
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
+  const [restartingAria2Engine, setRestartingAria2Engine] = useState(false);
+  const [pendingRestartPayload, setPendingRestartPayload] = useState<PendingAria2RestartPayload | null>(null);
+
+  function hydrateAria2Editor(snapshot: EngineRuntimeSnapshot, nextTrackerSets: BtTrackerSet[]) {
+    const profileCode = snapshot.activeProfileCode || "default";
+    const matchedProfile = snapshot.profiles.find((profile) => profile.profileCode === profileCode);
+    const matchedTrackerSet =
+      nextTrackerSets.find((trackerSet) => trackerSet.trackerSetCode === matchedProfile?.trackerSetCode) || nextTrackerSets[0];
+    setSelectedProfileCode(profileCode);
+    setAria2Command(buildAria2Command(matchedProfile?.profileJson, matchedTrackerSet?.trackerListText));
+  }
 
   useEffect(() => {
     let disposed = false;
@@ -33,12 +110,19 @@ export function SettingsPage() {
       try {
         setLoading(true);
         setErrorMessage("");
-        setSuccessMessage("");
-        const nextConfig = await getDownloadConfig();
-        if (!disposed) {
-          setConfig(nextConfig);
-          syncConfig(nextConfig);
+        const [nextConfig, nextRuntimeSnapshot, nextTrackerSets] = await Promise.all([
+          getDownloadConfig(),
+          getEngineRuntimeSnapshot(),
+          listTrackerSets()
+        ]);
+        if (disposed) {
+          return;
         }
+        setConfig(nextConfig);
+        syncConfig(nextConfig);
+        setRuntimeSnapshot(nextRuntimeSnapshot);
+        setTrackerSets(nextTrackerSets);
+        hydrateAria2Editor(nextRuntimeSnapshot, nextTrackerSets);
       } catch (error) {
         if (!disposed) {
           setErrorMessage(error instanceof Error ? error.message : "配置加载失败");
@@ -54,11 +138,23 @@ export function SettingsPage() {
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [syncConfig]);
 
   function updateField<K extends keyof DownloadConfig>(key: K, value: DownloadConfig[K]) {
     setSuccessMessage("");
     setConfig((currentConfig) => (currentConfig ? { ...currentConfig, [key]: value } : currentConfig));
+  }
+
+  /**
+   * 重新拉取 aria2 运行配置快照，并回填当前命令输入框。
+   *
+   * @returns Promise<void>
+   */
+  async function reloadRuntimeConfigs() {
+    const [nextRuntimeSnapshot, nextTrackerSets] = await Promise.all([getEngineRuntimeSnapshot(), listTrackerSets()]);
+    setRuntimeSnapshot(nextRuntimeSnapshot);
+    setTrackerSets(nextTrackerSets);
+    hydrateAria2Editor(nextRuntimeSnapshot, nextTrackerSets);
   }
 
   async function selectDefaultSaveDir() {
@@ -97,7 +193,7 @@ export function SettingsPage() {
       const updatedConfig = await updateDownloadConfig(buildPayload(config));
       setConfig(updatedConfig);
       syncConfig(updatedConfig);
-      setSuccessMessage("配置已保存，运行态提示已同步更新。");
+      setSuccessMessage("基础配置已保存。");
       pushToast("设置已保存", "success");
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "设置保存失败", "danger");
@@ -106,133 +202,193 @@ export function SettingsPage() {
     }
   }
 
+  /**
+   * 保存 aria2 启动命令，并在保存成功后询问用户是否立即重启引擎。
+   *
+   * @returns Promise<void>
+   */
+  async function submitAria2Command() {
+    const effectiveProfileCode = selectedProfileCode.trim() || runtimeSnapshot?.activeProfileCode || "default";
+
+    try {
+      setSaving(true);
+      const parsedCommand = parseAria2Command(aria2Command);
+      const nextSnapshot = await updateEngineRuntimeProfile({
+        profileCode: effectiveProfileCode,
+        profileJson: parsedCommand.profileJson
+      });
+      const trackerSetCode = resolveTrackerSetCode(nextSnapshot, trackerSets, effectiveProfileCode);
+      await updateTrackerSet(trackerSetCode, buildTrackerPayload(trackerSets, trackerSetCode, parsedCommand.trackerListText));
+      await reloadRuntimeConfigs();
+      setPendingRestartPayload(parsedCommand);
+      setRestartConfirmOpen(true);
+      pushToast("aria2 配置已保存，请确认是否立即重启引擎", "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "aria2 配置保存失败", "danger");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function runBaiduPanPreflight() {
+    if (!baiduShareUrl.trim() && !baiduAuthContext.trim()) {
+      pushToast("请至少填写分享链接或鉴权上下文", "warning");
+      return;
+    }
+    try {
+      setCheckingBaiduPan(true);
+      const result = await preflightBaiduPan({
+        shareUrl: baiduShareUrl.trim() || undefined,
+        authContext: baiduAuthContext.trim() || undefined
+      });
+      setBaiduPreflightResult(result);
+      pushToast("百度网盘预研校验已完成", "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "百度网盘预研校验失败", "danger");
+    } finally {
+      setCheckingBaiduPan(false);
+    }
+  }
+
+  async function runBaiduPanResolve() {
+    if (!baiduProviderContext.trim()) {
+      pushToast("请输入 Provider 上下文后再执行解析", "warning");
+      return;
+    }
+    try {
+      setResolvingBaiduPan(true);
+      const result = await resolveBaiduPan({
+        providerContext: baiduProviderContext.trim()
+      });
+      setBaiduResolveResult(result);
+      pushToast("百度网盘预研解析已完成", "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "百度网盘预研解析失败", "danger");
+    } finally {
+      setResolvingBaiduPan(false);
+    }
+  }
+
+  function closeRestartConfirm() {
+    setRestartConfirmOpen(false);
+    setPendingRestartPayload(null);
+    pushToast("aria2 配置已保存，当前未重启引擎", "warning");
+  }
+
+  /**
+   * 调用 Electron 主进程重启托管 aria2，并等待新的启动命令重新生效。
+   *
+   * @returns Promise<void>
+   */
+  async function restartAria2Engine() {
+    if (!pendingRestartPayload) {
+      pushToast("当前没有可重启的 aria2 配置", "warning");
+      return;
+    }
+    if (!window.moodDownloadBridge?.app.restartAria2Engine) {
+      pushToast("当前环境不支持重启 aria2 引擎", "warning");
+      return;
+    }
+
+    try {
+      setRestartingAria2Engine(true);
+      const restartResult = await window.moodDownloadBridge.app.restartAria2Engine(pendingRestartPayload);
+      if (restartResult) {
+        pushToast(restartResult, "danger");
+        return;
+      }
+      await reloadRuntimeConfigs();
+      setRestartConfirmOpen(false);
+      setPendingRestartPayload(null);
+      pushToast("aria2 引擎已重启，新的启动命令已生效", "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "重启 aria2 引擎失败", "danger");
+    } finally {
+      setRestartingAria2Engine(false);
+    }
+  }
+
   return (
     <>
       <section className="page-header">
         <div>
           <h1>设置</h1>
-          <p>调整本地下载目录、并发限额、全局限速与接管行为，保存后立即生效。</p>
+          <p>配置按基础设置、aria2 启动命令和百度网盘预研三块拆开，减少不同配置域混在一起。</p>
         </div>
         <div className="capture-card page-header-card">
           <strong>运行参数基线</strong>
           <div className="page-header-pills">
             <span className="header-pill">本地配置</span>
-            <span className="header-pill header-pill--success">保存即生效</span>
+            <span className="header-pill header-pill--success">aria2 启动命令</span>
           </div>
-          <span>配置更新后无需重启应用，当前页面展示的都是运行时实际生效的参数。</span>
+          <span>aria2 页签现在只保留启动命令输入框，保存后再决定是否立即重启引擎。</span>
         </div>
       </section>
 
-      <div className="settings-grid">
-        <section className="settings-card">
-          {loading ? <div className="empty-state">正在读取本地配置...</div> : null}
-
-          {!loading && errorMessage ? (
-            <div className="error-state">
-              <div>
-                <strong>配置加载失败</strong>
-                <p>{errorMessage}</p>
-              </div>
-            </div>
-          ) : null}
-
-          {!loading && config ? (
-            <>
-              {successMessage ? (
-                <div className="inline-banner inline-banner--success">
-                  <strong>保存成功</strong>
-                  <span>{successMessage}</span>
-                </div>
-              ) : null}
-
-              <div className="settings-form">
-                <label className="settings-field">
-                  <span>默认下载目录</span>
-                  <div className="folder-picker">
-                    <input className="field folder-picker__input" readOnly value={config.defaultSaveDir} />
-                    <button
-                      className="button-ghost folder-picker__button"
-                      disabled={saving}
-                      onClick={() => void selectDefaultSaveDir()}
-                      type="button"
-                    >
-                      选择文件夹
-                    </button>
-                  </div>
-                </label>
-
-                <label className="settings-field">
-                  <span>最大并发下载数</span>
-                  <input
-                    className="field"
-                    min={1}
-                    onChange={(event) => updateField("maxConcurrentDownloads", Number(event.target.value))}
-                    type="number"
-                    value={config.maxConcurrentDownloads}
-                  />
-                </label>
-
-                <label className="settings-field">
-                  <span>全局下载限速（B/s）</span>
-                  <input
-                    className="field"
-                    min={0}
-                    onChange={(event) => updateField("maxGlobalDownloadSpeed", Number(event.target.value))}
-                    type="number"
-                    value={config.maxGlobalDownloadSpeed}
-                  />
-                </label>
-
-                <label className="settings-field">
-                  <span>全局上传限速（B/s）</span>
-                  <input
-                    className="field"
-                    min={0}
-                    onChange={(event) => updateField("maxGlobalUploadSpeed", Number(event.target.value))}
-                    type="number"
-                    value={config.maxGlobalUploadSpeed}
-                  />
-                </label>
-
-                <div className="toggle-row">
-                  <div>
-                    <strong>浏览器接管</strong>
-                    <span>开启后会对新入队的外部 HTTP / HTTPS 任务给出浏览器接管结果提示。</span>
-                  </div>
-                  <button
-                    className={config.browserCaptureEnabled ? "toggle toggle--checked" : "toggle"}
-                    onClick={() => updateField("browserCaptureEnabled", !config.browserCaptureEnabled)}
-                    type="button"
-                  />
-                </div>
-
-                <div className="toggle-row">
-                  <div>
-                    <strong>剪贴板监听</strong>
-                    <span>开启后会轮询系统剪贴板中的下载地址，并可直接带入新建任务弹窗确认。</span>
-                  </div>
-                  <button
-                    className={config.clipboardMonitorEnabled ? "toggle toggle--checked" : "toggle"}
-                    onClick={() => updateField("clipboardMonitorEnabled", !config.clipboardMonitorEnabled)}
-                    type="button"
-                  />
-                </div>
-              </div>
-
-              <div className="settings-actions">
-                <span className="muted-text">最近更新时间：{formatDateTime(config.updatedAt)}</span>
-                <button className="button" disabled={saving} onClick={() => void submitConfig()} type="button">
-                  {saving ? "保存中..." : "保存设置"}
-                </button>
-              </div>
-            </>
-          ) : null}
-        </section>
-
-        <div className="settings-form">
-          <CaptureReadinessPanel />
-        </div>
+      <div aria-label="设置页签" className="settings-tabs" role="tablist">
+        {SETTINGS_TABS.map((tab) => (
+          <button
+            key={tab.key}
+            aria-selected={activeTab === tab.key}
+            className={activeTab === tab.key ? "settings-tab settings-tab--active" : "settings-tab"}
+            onClick={() => setActiveTab(tab.key)}
+            role="tab"
+            type="button"
+          >
+            <strong>{tab.label}</strong>
+            <span>{tab.description}</span>
+          </button>
+        ))}
       </div>
+
+      <div className="settings-tab-panel">
+        {activeTab === "basic" ? (
+          <BasicSettingsSection
+            config={config}
+            errorMessage={errorMessage}
+            loading={loading}
+            onSelectDefaultSaveDir={selectDefaultSaveDir}
+            onSubmit={submitConfig}
+            onUpdateField={updateField}
+            saving={saving}
+            successMessage={successMessage}
+          />
+        ) : null}
+
+        {activeTab === "aria2" ? (
+          <Aria2SettingsSection
+            aria2Command={aria2Command}
+            onChangeCommand={setAria2Command}
+            onSubmit={submitAria2Command}
+            runtimeSnapshot={runtimeSnapshot}
+            saving={saving}
+          />
+        ) : null}
+
+        {activeTab === "baidupan" ? (
+          <BaiduPanSettingsSection
+            authContext={baiduAuthContext}
+            checking={checkingBaiduPan}
+            onChangeAuthContext={setBaiduAuthContext}
+            onChangeProviderContext={setBaiduProviderContext}
+            onChangeShareUrl={setBaiduShareUrl}
+            onPreflight={runBaiduPanPreflight}
+            onResolve={runBaiduPanResolve}
+            preflightResult={baiduPreflightResult}
+            providerContext={baiduProviderContext}
+            resolveResult={baiduResolveResult}
+            resolving={resolvingBaiduPan}
+            shareUrl={baiduShareUrl}
+          />
+        ) : null}
+      </div>
+
+      <Aria2RestartConfirmDialog
+        busy={restartingAria2Engine}
+        onCancel={closeRestartConfirm}
+        onConfirm={restartAria2Engine}
+        open={restartConfirmOpen}
+      />
     </>
   );
 }

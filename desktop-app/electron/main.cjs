@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, dialog } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, dialog, shell } = require("electron");
 const { spawn } = require("node:child_process");
 const crypto = require("node:crypto");
 const fs = require("node:fs");
@@ -13,6 +13,8 @@ const WINDOW_STATE_EVENT_CHANNEL = "window:stateChanged";
 const DEFAULT_LOCAL_SERVICE_HOST = "127.0.0.1";
 const DEFAULT_LOCAL_SERVICE_PORT = 18080;
 const DEFAULT_ARIA2_RPC_PORT = 6800;
+const MANAGED_LOCAL_SERVICE_FIXED_PORT = 18080;
+const MANAGED_LOCAL_SERVICE_FIXED_TOKEN = "mooddownload-packaged-local-token";
 const MANAGED_RUNTIME_TIMEOUT_MS = 30000;
 const MANAGED_RUNTIME_FLAG = "MOODDOWNLOAD_MANAGED_RUNTIME";
 const ARIA2_TRACKER_TEMPLATE =
@@ -28,6 +30,18 @@ let appTray = null;
 let managedLocalServiceProcess = null;
 /** @type {import("node:child_process").ChildProcess | null} */
 let managedAria2Process = null;
+/** @type {{
+ *   userDataDir: string,
+ *   downloadDir: string,
+ *   aria2WorkDir: string,
+ *   aria2SessionFile: string,
+ *   dbPath: string,
+ *   localServicePort: number,
+ *   aria2RpcPort: number,
+ *   localToken: string,
+ *   aria2Secret: string
+ * } | null} */
+let managedRuntimeState = null;
 let runtimeConfig = buildRuntimeConfig();
 let appQuitting = false;
 
@@ -83,6 +97,19 @@ function syncRuntimeEnv(nextRuntimeConfig) {
   process.env.VITE_LOCAL_SERVICE_URL = nextRuntimeConfig.serviceUrl;
   process.env.LOCAL_SERVICE_TOKEN = nextRuntimeConfig.localToken;
   process.env.VITE_LOCAL_SERVICE_TOKEN = nextRuntimeConfig.localToken;
+}
+
+/**
+ * 同步当前进程的托管运行时标记，避免后续逻辑被已写回的 LOCAL_SERVICE_URL 误判。
+ *
+ * @param {boolean} enabled 是否启用托管运行时
+ */
+function syncManagedRuntimeFlag(enabled) {
+  if (enabled) {
+    process.env[MANAGED_RUNTIME_FLAG] = "1";
+    return;
+  }
+  delete process.env[MANAGED_RUNTIME_FLAG];
 }
 
 /**
@@ -308,6 +335,26 @@ function findAvailablePort(preferredPort) {
 }
 
 /**
+ * 校验指定本地端口是否可用。用于安装包模式下的固定端口策略，避免静默回退到随机端口。
+ *
+ * @param {number} port 固定端口
+ * @param {string} label 端口用途
+ * @returns {Promise<void>}
+ */
+function ensurePortAvailable(port, label) {
+  return new Promise((resolve, reject) => {
+    const server = net.createServer();
+    server.unref();
+    server.on("error", () => {
+      reject(new Error(`${label} 固定端口 ${port} 已被占用，请先释放端口后再启动应用`));
+    });
+    server.listen(port, DEFAULT_LOCAL_SERVICE_HOST, () => {
+      server.close(() => resolve());
+    });
+  });
+}
+
+/**
  * 轮询本地服务健康接口，避免渲染层在后端未就绪前直接报错。
  *
  * @param {string} serviceUrl 本地服务地址
@@ -487,6 +534,46 @@ function startManagedProcess(command, args, env, label) {
 }
 
 /**
+ * 停止指定受托管子进程，并等待其退出，供 aria2 热重启流程复用。
+ *
+ * @param {import("node:child_process").ChildProcess | null} childProcess 子进程
+ * @param {string} label 进程标签
+ * @returns {Promise<void>}
+ */
+async function stopManagedChildProcess(childProcess, label) {
+  if (!childProcess || childProcess.exitCode !== null || childProcess.killed) {
+    return;
+  }
+
+  await new Promise((resolve, reject) => {
+    let finished = false;
+    const timeoutId = setTimeout(() => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      reject(new Error(`等待 ${label} 退出超时`));
+    }, 5000);
+
+    childProcess.once("exit", () => {
+      if (finished) {
+        return;
+      }
+      finished = true;
+      clearTimeout(timeoutId);
+      resolve();
+    });
+
+    try {
+      childProcess.kill();
+    } catch (error) {
+      clearTimeout(timeoutId);
+      reject(error);
+    }
+  });
+}
+
+/**
  * 构造打包模式下的运行时状态。
  *
  * @returns {Promise<{
@@ -512,6 +599,7 @@ async function buildManagedRuntimeState() {
 
   const aria2SessionFile = path.join(aria2WorkDir, "session.txt");
   ensureFileExists(aria2SessionFile);
+  await ensurePortAvailable(MANAGED_LOCAL_SERVICE_FIXED_PORT, "local-service");
 
   return {
     userDataDir,
@@ -519,9 +607,9 @@ async function buildManagedRuntimeState() {
     aria2WorkDir,
     aria2SessionFile,
     dbPath: path.join(userDataDir, "mooddownload-local.db"),
-    localServicePort: await findAvailablePort(DEFAULT_LOCAL_SERVICE_PORT),
+    localServicePort: MANAGED_LOCAL_SERVICE_FIXED_PORT,
     aria2RpcPort: await findAvailablePort(DEFAULT_ARIA2_RPC_PORT),
-    localToken: createSecret(),
+    localToken: MANAGED_LOCAL_SERVICE_FIXED_TOKEN,
     aria2Secret: createSecret()
   };
 }
@@ -537,30 +625,114 @@ async function buildManagedRuntimeState() {
  * }} managedRuntimeState 运行时状态
  * @returns {string[]}
  */
-function buildAria2Args(managedRuntimeState) {
-  return [
-    "--enable-rpc",
-    "--rpc-listen-all=false",
-    `--rpc-listen-port=${managedRuntimeState.aria2RpcPort}`,
-    `--rpc-secret=${managedRuntimeState.aria2Secret}`,
-    "--enable-dht=true",
-    "--enable-dht6=true",
-    "--bt-enable-lpd=true",
-    "--enable-peer-exchange=true",
-    "--listen-port=51413",
-    "--dht-listen-port=51413",
-    "--seed-time=0",
-    "--follow-torrent=true",
-    "--follow-metalink=true",
-    "--allow-overwrite=true",
-    `--bt-tracker=${ARIA2_TRACKER_TEMPLATE}`,
-    `--dir=${managedRuntimeState.downloadDir}`,
-    `--input-file=${managedRuntimeState.aria2SessionFile}`,
-    `--save-session=${managedRuntimeState.aria2SessionFile}`,
-    "--save-session-interval=30",
-    "--continue=true",
-    "--auto-file-renaming=false"
-  ];
+function normalizeAria2OptionValue(value) {
+  if (typeof value === "boolean") {
+    return value ? "true" : "false";
+  }
+  return String(value).trim();
+}
+
+/**
+ * 将页面填写的 aria2 配置 JSON 解析为启动参数映射。
+ *
+ * @param {string | undefined} profileJson 配置 JSON
+ * @returns {Record<string, string>}
+ */
+function parseAria2ProfileJson(profileJson) {
+  if (!profileJson || !String(profileJson).trim()) {
+    return {};
+  }
+
+  let parsedProfile = null;
+  try {
+    parsedProfile = JSON.parse(String(profileJson));
+  } catch (error) {
+    throw new Error("aria2 启动配置格式不正确，请输入合法的 JSON");
+  }
+
+  if (!parsedProfile || Array.isArray(parsedProfile) || typeof parsedProfile !== "object") {
+    throw new Error("aria2 启动配置格式不正确，请输入 JSON 对象");
+  }
+
+  const normalizedOptions = {};
+  for (const [key, value] of Object.entries(parsedProfile)) {
+    if (!String(key).trim() || value === null || value === undefined || !String(value).trim()) {
+      continue;
+    }
+    normalizedOptions[String(key).trim()] = normalizeAria2OptionValue(value);
+  }
+  return normalizedOptions;
+}
+
+function normalizeTrackerListText(trackerListText) {
+  if (!trackerListText || !String(trackerListText).trim()) {
+    return ARIA2_TRACKER_TEMPLATE;
+  }
+  return String(trackerListText)
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join(",");
+}
+
+/**
+ * 构造 aria2 启动参数。系统托管 RPC、目录和 session 相关字段，其余参数按当前配置模板覆盖默认值。
+ *
+ * @param {{
+ *   downloadDir: string,
+ *   aria2SessionFile: string,
+ *   aria2RpcPort: number,
+ *   aria2Secret: string
+ * }} managedRuntimeState 当前运行时状态
+ * @param {{profileJson?: string, trackerListText?: string}} [launchConfig] 页面传入的启动配置
+ * @returns {string[]}
+ */
+function buildAria2Args(managedRuntimeState, launchConfig = {}) {
+  const managedOnlyKeys = new Set([
+    "enable-rpc",
+    "rpc-listen-all",
+    "rpc-listen-port",
+    "rpc-secret",
+    "dir",
+    "input-file",
+    "save-session",
+    "save-session-interval",
+    "continue",
+    "auto-file-renaming"
+  ]);
+  const optionEntries = new Map([
+    ["enable-rpc", "true"],
+    ["rpc-listen-all", "false"],
+    ["rpc-listen-port", String(managedRuntimeState.aria2RpcPort)],
+    ["rpc-secret", managedRuntimeState.aria2Secret],
+    ["enable-dht", "true"],
+    ["enable-dht6", "true"],
+    ["bt-enable-lpd", "true"],
+    ["enable-peer-exchange", "true"],
+    ["listen-port", "51413"],
+    ["dht-listen-port", "51413"],
+    ["seed-time", "0"],
+    ["follow-torrent", "true"],
+    ["follow-metalink", "true"],
+    ["allow-overwrite", "true"],
+    ["bt-tracker", normalizeTrackerListText(launchConfig.trackerListText)],
+    ["dir", managedRuntimeState.downloadDir],
+    ["input-file", managedRuntimeState.aria2SessionFile],
+    ["save-session", managedRuntimeState.aria2SessionFile],
+    ["save-session-interval", "30"],
+    ["continue", "true"],
+    ["auto-file-renaming", "false"]
+  ]);
+
+  const parsedProfileOptions = parseAria2ProfileJson(launchConfig.profileJson);
+  for (const [key, value] of Object.entries(parsedProfileOptions)) {
+    if (managedOnlyKeys.has(key)) {
+      continue;
+    }
+    optionEntries.set(key, value);
+  }
+
+  return Array.from(optionEntries.entries()).map(([key, value]) => `--${key}=${value}`);
 }
 
 /**
@@ -573,7 +745,7 @@ function buildAria2Args(managedRuntimeState) {
  *   aria2Secret: string
  * }} managedRuntimeState 运行时状态
  */
-function startManagedAria2(managedRuntimeState) {
+function startManagedAria2(managedRuntimeState, launchConfig = {}) {
   if (process.platform === "win32") {
     const bundledAria2 = resolveRuntimeResourcePath("windows", "aria2", "aria2c.exe");
     if (app.isPackaged && !fs.existsSync(bundledAria2)) {
@@ -583,7 +755,7 @@ function startManagedAria2(managedRuntimeState) {
 
   managedAria2Process = startManagedProcess(
     resolveAria2Executable(),
-    buildAria2Args(managedRuntimeState),
+    buildAria2Args(managedRuntimeState, launchConfig),
     process.env,
     "aria2"
   );
@@ -633,7 +805,8 @@ function startManagedLocalService(managedRuntimeState) {
  * 打包模式下自动拉起 aria2 与 local-service，并等待后端健康检查通过后再加载界面。
  */
 async function ensureManagedRuntime() {
-  const managedRuntimeState = await buildManagedRuntimeState();
+  managedRuntimeState = await buildManagedRuntimeState();
+  syncManagedRuntimeFlag(true);
   runtimeConfig = buildManagedRuntimeConfig(managedRuntimeState.localServicePort, managedRuntimeState.localToken);
   syncRuntimeEnv(runtimeConfig);
   startManagedAria2(managedRuntimeState);
@@ -678,6 +851,8 @@ function stopManagedRuntime() {
       console.warn("[managed-runtime] 停止子进程失败", error);
     }
   });
+  managedRuntimeState = null;
+  syncManagedRuntimeFlag(false);
 }
 
 ipcMain.handle("window:minimize", () => {
@@ -714,8 +889,53 @@ ipcMain.handle("window:getState", () => {
   return buildWindowState();
 });
 
+/**
+ * 恢复并聚焦主窗口，供浏览器接管成功后主动唤起桌面端界面。
+ *
+ * @returns {boolean}
+ */
+ipcMain.handle("window:showAndFocus", () => {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false;
+  }
+  if (mainWindow.isMinimized()) {
+    mainWindow.restore();
+  }
+  if (!mainWindow.isVisible()) {
+    mainWindow.show();
+  }
+  mainWindow.focus();
+  emitWindowState("show-and-focus");
+  return true;
+});
+
 ipcMain.handle("app:getRuntimeConfig", () => runtimeConfig);
 ipcMain.handle("app:pickDirectory", (_event, defaultPath) => pickDirectory(defaultPath));
+ipcMain.handle("app:openPath", async (_event, targetPath) => {
+  if (!targetPath || !String(targetPath).trim()) {
+    return "目标路径不能为空";
+  }
+  return shell.openPath(String(targetPath).trim());
+});
+ipcMain.handle("app:restartAria2Engine", async (_event, payload) => {
+  if (!managedRuntimeState) {
+    return "当前运行模式未托管 aria2，引擎无法自动重启";
+  }
+
+  try {
+    await stopManagedChildProcess(managedAria2Process, "aria2");
+    startManagedAria2(managedRuntimeState, payload || {});
+    await waitForAria2Ready(
+      managedRuntimeState.aria2RpcPort,
+      managedRuntimeState.aria2Secret,
+      MANAGED_RUNTIME_TIMEOUT_MS
+    );
+    return "";
+  } catch (error) {
+    console.error("[managed-runtime] 重启 aria2 失败", error);
+    return error instanceof Error ? error.message : "重启 aria2 失败";
+  }
+});
 
 app.whenReady().then(async () => {
   app.setAppUserModelId("com.mooddownload.desktop");
@@ -724,6 +944,7 @@ app.whenReady().then(async () => {
     if (shouldUseManagedRuntime()) {
       await ensureManagedRuntime();
     } else {
+      syncManagedRuntimeFlag(false);
       runtimeConfig = buildRuntimeConfig();
       syncRuntimeEnv(runtimeConfig);
     }

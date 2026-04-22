@@ -79,6 +79,30 @@ public class DownloadTaskModel {
     /** 幂等请求键 */
     private String clientRequestId;
 
+    /** 任务入口类型 */
+    private String entryType;
+
+    /** 来源 Provider 编码 */
+    private String sourceProvider;
+
+    /** 来源站点 Host */
+    private String sourceSiteHost;
+
+    /** 入口上下文 JSON */
+    private String entryContextJson;
+
+    /** 引擎配置模板编码 */
+    private String engineProfileCode;
+
+    /** 打开文件夹目录 */
+    private String openFolderPath;
+
+    /** 主文件路径 */
+    private String primaryFilePath;
+
+    /** 完成时间 */
+    private Long completedAt;
+
     /** 最近同步时间 */
     private Long lastSyncAt;
 
@@ -281,6 +305,70 @@ public class DownloadTaskModel {
 
     public void setClientRequestId(String clientRequestId) {
         this.clientRequestId = clientRequestId;
+    }
+
+    public String getEntryType() {
+        return entryType;
+    }
+
+    public void setEntryType(String entryType) {
+        this.entryType = entryType;
+    }
+
+    public String getSourceProvider() {
+        return sourceProvider;
+    }
+
+    public void setSourceProvider(String sourceProvider) {
+        this.sourceProvider = sourceProvider;
+    }
+
+    public String getSourceSiteHost() {
+        return sourceSiteHost;
+    }
+
+    public void setSourceSiteHost(String sourceSiteHost) {
+        this.sourceSiteHost = sourceSiteHost;
+    }
+
+    public String getEntryContextJson() {
+        return entryContextJson;
+    }
+
+    public void setEntryContextJson(String entryContextJson) {
+        this.entryContextJson = entryContextJson;
+    }
+
+    public String getEngineProfileCode() {
+        return engineProfileCode;
+    }
+
+    public void setEngineProfileCode(String engineProfileCode) {
+        this.engineProfileCode = engineProfileCode;
+    }
+
+    public String getOpenFolderPath() {
+        return openFolderPath;
+    }
+
+    public void setOpenFolderPath(String openFolderPath) {
+        this.openFolderPath = openFolderPath;
+    }
+
+    public String getPrimaryFilePath() {
+        return primaryFilePath;
+    }
+
+    public void setPrimaryFilePath(String primaryFilePath) {
+        this.primaryFilePath = primaryFilePath;
+    }
+
+    public Long getCompletedAt() {
+        return completedAt;
+    }
+
+    public void setCompletedAt(Long completedAt) {
+        this.completedAt = completedAt;
     }
 
     public Long getLastSyncAt() {

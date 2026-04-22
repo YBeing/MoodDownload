@@ -26,6 +26,9 @@ public class ExtensionCaptureControllerConverter {
         extensionCaptureCommand.setTabUrl(request.getTabUrl());
         extensionCaptureCommand.setDownloadUrl(request.getDownloadUrl());
         extensionCaptureCommand.setSuggestedName(request.getSuggestedName());
+        extensionCaptureCommand.setReferer(request.getReferer());
+        extensionCaptureCommand.setUserAgent(request.getUserAgent());
+        extensionCaptureCommand.setHeaderSnapshotJson(request.getHeaderSnapshotJson());
         extensionCaptureCommand.setClientType(clientType);
         return extensionCaptureCommand;
     }
@@ -42,6 +45,8 @@ public class ExtensionCaptureControllerConverter {
         extensionCaptureResponse.setTaskId(captureTaskResult.getTaskId());
         extensionCaptureResponse.setTaskCode(captureTaskResult.getTaskCode());
         extensionCaptureResponse.setDomainStatus(captureTaskResult.getDomainStatus());
+        extensionCaptureResponse.setResolvedSourceType(captureTaskResult.getResolvedSourceType());
+        extensionCaptureResponse.setSiteRuleMatched(captureTaskResult.getSiteRuleMatched());
         return extensionCaptureResponse;
     }
 }

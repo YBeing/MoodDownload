@@ -475,6 +475,20 @@ a {
   color: var(--text-secondary);
 }
 
+.settings-example {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px dashed var(--line-soft);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.55;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .progress-track {
   position: relative;
   overflow: hidden;
@@ -730,6 +744,52 @@ a {
   grid-template-columns: minmax(0, 1.6fr) minmax(320px, 0.9fr);
 }
 
+.settings-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.settings-tab {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid var(--line-soft);
+  background: var(--bg-panel-soft);
+  color: var(--text-secondary);
+  text-align: left;
+  transition: border-color 160ms ease, transform 160ms ease, background 160ms ease;
+}
+
+.settings-tab:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+}
+
+.settings-tab strong {
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.settings-tab span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.settings-tab--active {
+  border-color: rgba(35, 199, 255, 0.26);
+  background: linear-gradient(180deg, rgba(35, 199, 255, 0.1), rgba(11, 18, 27, 0.9));
+  box-shadow: var(--shadow-glow);
+}
+
+.settings-tab-panel {
+  display: grid;
+  gap: 16px;
+}
+
 .settings-card {
   display: grid;
   gap: 18px;
@@ -834,11 +894,6 @@ a {
 .inline-banner--warning {
   background: rgba(247, 184, 75, 0.08);
   border-color: rgba(247, 184, 75, 0.24);
-}
-
-.capture-readiness {
-  display: grid;
-  gap: 12px;
 }
 
 .capture-viewport {
@@ -1022,6 +1077,10 @@ a {
   .settings-grid,
   .summary-grid,
   .task-row {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tabs {
     grid-template-columns: 1fr;
   }
 

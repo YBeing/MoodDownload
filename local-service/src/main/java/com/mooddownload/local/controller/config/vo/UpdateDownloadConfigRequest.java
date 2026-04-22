@@ -23,6 +23,12 @@ public class UpdateDownloadConfigRequest {
     /** 剪贴板监听开关 */
     private Boolean clipboardMonitorEnabled;
 
+    /** 当前生效的引擎配置模板编码 */
+    private String activeEngineProfileCode;
+
+    /** 删除文件是否优先进入回收站 */
+    private Boolean deleteToRecycleBinEnabled;
+
     public String getDefaultSaveDir() {
         return defaultSaveDir;
     }
@@ -69,5 +75,21 @@ public class UpdateDownloadConfigRequest {
 
     public void setClipboardMonitorEnabled(Boolean clipboardMonitorEnabled) {
         this.clipboardMonitorEnabled = clipboardMonitorEnabled;
+    }
+
+    public String getActiveEngineProfileCode() {
+        return activeEngineProfileCode;
+    }
+
+    public void setActiveEngineProfileCode(String activeEngineProfileCode) {
+        this.activeEngineProfileCode = activeEngineProfileCode;
+    }
+
+    public Boolean getDeleteToRecycleBinEnabled() {
+        return deleteToRecycleBinEnabled;
+    }
+
+    public void setDeleteToRecycleBinEnabled(Boolean deleteToRecycleBinEnabled) {
+        this.deleteToRecycleBinEnabled = deleteToRecycleBinEnabled;
     }
 }

@@ -28,6 +28,8 @@ public class DownloadConfigConverter {
         downloadConfigModel.setBrowserCaptureEnabled(toBoolean(downloadConfigDO.getBrowserCaptureEnabled()));
         downloadConfigModel.setClipboardMonitorEnabled(toBoolean(downloadConfigDO.getClipboardMonitorEnabled()));
         downloadConfigModel.setAutoStartEnabled(toBoolean(downloadConfigDO.getAutoStartEnabled()));
+        downloadConfigModel.setActiveEngineProfileCode(downloadConfigDO.getActiveEngineProfileCode());
+        downloadConfigModel.setDeleteToRecycleBinEnabled(toBoolean(downloadConfigDO.getDeleteToRecycleBinEnabled()));
         downloadConfigModel.setUpdatedAt(downloadConfigDO.getUpdatedAt());
         return downloadConfigModel;
     }
@@ -48,6 +50,8 @@ public class DownloadConfigConverter {
         target.setBrowserCaptureEnabled(source.getBrowserCaptureEnabled());
         target.setClipboardMonitorEnabled(source.getClipboardMonitorEnabled());
         target.setAutoStartEnabled(source.getAutoStartEnabled());
+        target.setActiveEngineProfileCode(source.getActiveEngineProfileCode());
+        target.setDeleteToRecycleBinEnabled(source.getDeleteToRecycleBinEnabled());
         target.setLocalApiToken(source.getLocalApiToken());
         target.setCreatedAt(source.getCreatedAt());
         target.setUpdatedAt(source.getUpdatedAt());

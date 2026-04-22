@@ -13,7 +13,9 @@ contextBridge.exposeInMainWorld("moodDownloadBridge", {
   runtime: runtimeConfig,
   app: {
     getRuntimeConfig: () => ipcRenderer.invoke("app:getRuntimeConfig"),
-    pickDirectory: (defaultPath) => ipcRenderer.invoke("app:pickDirectory", defaultPath)
+    pickDirectory: (defaultPath) => ipcRenderer.invoke("app:pickDirectory", defaultPath),
+    openPath: (targetPath) => ipcRenderer.invoke("app:openPath", targetPath),
+    restartAria2Engine: (payload) => ipcRenderer.invoke("app:restartAria2Engine", payload)
   },
   clipboard: {
     readText: () => clipboard.readText()
@@ -23,6 +25,7 @@ contextBridge.exposeInMainWorld("moodDownloadBridge", {
     toggleMaximize: () => ipcRenderer.invoke("window:toggleMaximize"),
     close: () => ipcRenderer.invoke("window:close"),
     minimizeToTray: () => ipcRenderer.invoke("window:minimizeToTray"),
+    showAndFocus: () => ipcRenderer.invoke("window:showAndFocus"),
     isMaximized: () => ipcRenderer.invoke("window:isMaximized"),
     getState: () => ipcRenderer.invoke("window:getState"),
     onStateChange: (listener) => {

@@ -22,6 +22,8 @@ interface MoodDownloadBridge {
   app: {
     getRuntimeConfig: () => Promise<MoodDownloadRuntimeConfig>;
     pickDirectory: (defaultPath?: string) => Promise<string | null>;
+    openPath: (targetPath: string) => Promise<string>;
+    restartAria2Engine: (payload: { profileJson: string; trackerListText?: string }) => Promise<string>;
   };
   clipboard: {
     readText: () => string;
@@ -31,6 +33,7 @@ interface MoodDownloadBridge {
     toggleMaximize: () => Promise<boolean>;
     close: () => Promise<void>;
     minimizeToTray: () => Promise<void>;
+    showAndFocus: () => Promise<boolean>;
     isMaximized: () => Promise<boolean>;
     getState: () => Promise<MoodDownloadWindowState>;
     onStateChange: (listener: (state: MoodDownloadWindowState) => void) => () => void;

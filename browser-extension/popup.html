@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoodDownload</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <main class="panel">
+      <section class="card">
+        <span class="eyebrow">MoodDownload</span>
+        <h1>浏览器接管</h1>
+        <p id="service-status" class="muted">正在检测本地服务...</p>
+        <div class="actions">
+          <button id="refresh-status" class="button" type="button">刷新状态</button>
+          <button id="open-options" class="button button-ghost" type="button">打开设置</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <span class="eyebrow">最近结果</span>
+        <div class="kv">
+          <span>状态</span>
+          <strong id="last-result-status">暂无</strong>
+        </div>
+        <div class="kv">
+          <span>来源类型</span>
+          <strong id="last-result-type">-</strong>
+        </div>
+        <div class="kv">
+          <span>站点规则</span>
+          <strong id="last-result-rule">-</strong>
+        </div>
+        <p id="last-result-message" class="muted">还没有接管记录。</p>
+      </section>
+    </main>
+    <script src="popup.js" type="module"></script>
+  </body>
+  </html>

@@ -7,6 +7,7 @@
 - `desktop-app` 如何生成 `NSIS` 安装包
 - 安装包内如何携带 `local-service.jar`、`Windows JRE`、`aria2c.exe`
 - 打包时 `aria2` 默认启动参数如何与当前文档约定保持一致
+- 浏览器扩展如何安装、配置并与桌面端协同
 - 黑屏、`aria2 RPC 调用失败` 等常见问题如何排查
 
 适用场景：
@@ -58,6 +59,7 @@
 - [architecture.md](/Users/lying/IdeaProjects/moodDownload/docs/architecture.md)
 - [local-development-startup.md](/Users/lying/IdeaProjects/moodDownload/docs/local-development-startup.md)
 - [local-aria2-bt-optimization.md](/Users/lying/IdeaProjects/moodDownload/docs/local-aria2-bt-optimization.md)
+- [browser-extension/README.md](/Users/lying/IdeaProjects/moodDownload/browser-extension/README.md)
 
 ## 4. 打包前提
 
@@ -127,6 +129,21 @@ desktop-app/resources/runtime/
 
 这是后续默认使用的完整出包命令。
 
+### 5.5 `browser-extension`
+
+作用：
+
+- Chrome / Edge Manifest V3 浏览器扩展
+- 拦截磁力链、`.torrent`、常见下载按钮左键点击
+- 支持右键“发送到 MoodDownload”
+- 支持 Popup 检测本地服务状态
+
+说明：
+
+- 浏览器插件当前不打进 `Windows exe` 安装包
+- 插件仍以 [browser-extension](/Users/lying/IdeaProjects/moodDownload/browser-extension) 目录的“加载已解压扩展程序”方式安装
+- 修改插件脚本后，不需要重新打 `Windows exe`，只需要在浏览器扩展页点击“重新加载”
+
 ## 6. 打包操作步骤
 
 在项目根下的 `desktop-app` 目录执行。
@@ -167,6 +184,13 @@ npm run dist:win
 当前真正给测试机安装时，通常只需要：
 
 - `MoodDownload-Setup-0.0.1-x64.exe`
+
+补充说明：
+
+- 浏览器扩展不是 `exe` 产物的一部分
+- 如果本次迭代同时改了 `desktop-app / electron / local-service` 与 `browser-extension`
+  - `desktop-app / electron / local-service` 需要重新打 `Windows exe`
+  - `browser-extension` 需要单独在浏览器中“重新加载”
 
 ## 8. aria2 打包运行参数
 
@@ -290,6 +314,76 @@ npm run dist:win
 - 只要保留 `--input-file` / `--save-session`，就必须同步保证 session 文件在首次启动前已创建
 - 如果后续修改 `aria2` 工作目录或 session 文件名，必须同步更新初始化逻辑和本文档
 
+### 9.5 浏览器插件 Popup 一直显示“正在检测本地服务...”
+
+现象：
+
+- 插件已安装
+- 点击 `刷新状态` 后，Popup 长时间停留在“正在检测本地服务...”
+
+根因：
+
+- [browser-extension/background.js](/Users/lying/IdeaProjects/moodDownload/browser-extension/background.js) 早期有两个 `chrome.runtime.onMessage` 监听
+- 其中“下载接管”监听器会错误拦截非 `capture-download` 消息，导致 `ping-local-service / get-config / get-last-result` 无法正确返回
+
+当前修复：
+
+- 非 `capture-download` 消息直接返回 `false`
+- `popup.js` 与 `options.js` 已补充空响应和异常提示
+
+后续规则：
+
+- 浏览器插件如果继续拆分消息类型，必须保证“下载接管消息”和“状态查询消息”不会互相拦截
+
+### 9.6 浏览器插件接管失败报 `仅允许 native-host 或 browser-extension 调用扩展接管接口`
+
+现象：
+
+- 插件与本地服务已连通
+- 但右键或左键接管时返回 `UNAUTHORIZED`
+
+根因：
+
+- [local-service/src/main/java/com/mooddownload/local/service/capture/ExtensionCaptureService.java](/Users/lying/IdeaProjects/moodDownload/local-service/src/main/java/com/mooddownload/local/service/capture/ExtensionCaptureService.java) 早期只放行 `native-host`
+- 浏览器插件默认发送的 `X-Client-Type` 是 `browser-extension`
+
+当前修复：
+
+- 现已同时放行：
+  - `native-host`
+  - `browser-extension`
+
+后续规则：
+
+- 插件配置页中的“调用方类型”默认保持 `browser-extension`
+- 不要再把浏览器插件误配置为 `desktop-app`
+
+### 9.7 浏览器接管成功但桌面端不切换到下载器窗口
+
+现象：
+
+- 插件接管成功
+- 任务已创建
+- 但桌面端没有自动切回当前下载器窗口，或没有自动打开任务详情
+
+高概率原因：
+
+- 桌面端只在任务页初始化任务快照，导致停留在设置页等非任务页面时无法及时识别“新外部任务”
+- 浏览器接管成功后，主窗口恢复与聚焦链路不完整
+
+当前修复：
+
+- [desktop-app/src/domains/capture/store/capture-context.tsx](/Users/lying/IdeaProjects/moodDownload/desktop-app/src/domains/capture/store/capture-context.tsx) 已在应用启动时主动初始化任务快照
+- [desktop-app/electron/main.cjs](/Users/lying/IdeaProjects/moodDownload/desktop-app/electron/main.cjs) 已补充 `window:showAndFocus`
+- 接管成功后，桌面端会：
+  - 恢复并聚焦主窗口
+  - 直接打开新任务详情抽屉
+
+当前限制：
+
+- 仅覆盖“桌面端已经在运行”的场景
+- 如果桌面端进程根本没有启动，浏览器扩展当前仍无法直接冷启动应用
+
 ## 10. 运行日志定位
 
 打包模式下，`Electron` 已经把内置子进程日志落盘。
@@ -312,6 +406,7 @@ npm run dist:win
 - 启动时弹出 `The argument 'stdio' is invalid`
 - 启动时弹出 `等待 aria2 RPC 启动超时`
 - 设置能打开，但下载相关接口全部失败
+- 浏览器插件显示已连通，但右键 / 左键接管持续失败
 
 ### 10.3 推荐排查顺序
 
@@ -323,10 +418,129 @@ npm run dist:win
 
 - `Windows 11` 上如果弹出 `The argument 'stdio' is invalid`，优先回看是否误把 `WriteStream` 直接传回了 `spawn(..., { stdio })`
 - 如果弹出 `等待 aria2 RPC 启动超时`，优先检查 `aria2-stderr.log` 中是否有 `input-file`、session 文件不存在、端口监听失败等信息
+- 如果浏览器插件接管失败，优先检查 `local-service-stderr.log` 中是否有 `UNAUTHORIZED`、`CAPTURE_DISABLED`、`COMMON_PARAM_INVALID` 等错误
 
-## 11. 常见命令组合
+## 11. 浏览器插件安装与配置
 
-### 11.1 仅更新后端并重打包
+当前浏览器插件位于：
+
+- [browser-extension](/Users/lying/IdeaProjects/moodDownload/browser-extension)
+
+当前能力：
+
+- 自动拦截磁力链点击
+- 自动拦截 `.torrent` 链接点击
+- 自动拦截常见下载按钮左键点击
+- 右键“发送到 MoodDownload”
+- Popup 查看本地服务状态和最近一次接管结果
+
+### 11.1 安装步骤
+
+以 `Chrome / Edge` 为例：
+
+1. 打开扩展管理页
+   - `chrome://extensions/`
+   - `edge://extensions/`
+2. 打开“开发者模式”
+3. 点击“加载已解压的扩展程序”
+4. 选择目录：
+
+```text
+/Users/lying/IdeaProjects/moodDownload/browser-extension
+```
+
+5. 安装完成后，建议固定到浏览器工具栏，便于查看 Popup 状态
+
+### 11.2 插件配置项说明
+
+插件 `Options` 页面当前包含以下字段：
+
+- `serviceUrl`
+  - 本地服务地址
+  - 开发模式通常为：`http://127.0.0.1:18080`
+- `localToken`
+  - 本地访问令牌
+  - 开发模式通常为：`dev-local-token`
+  - 不能使用占位值 `change-me-in-prod`
+- `clientType`
+  - 固定填：`browser-extension`
+- `autoCaptureMagnet`
+  - 是否自动拦截磁力链
+- `autoCaptureTorrent`
+  - 是否自动拦截 `.torrent`
+- `autoCaptureDownloadButton`
+  - 是否自动拦截常见下载按钮左键点击
+- `captureViaContextMenu`
+  - 是否启用右键“发送到 MoodDownload”
+
+### 11.3 开发模式推荐配置
+
+如果你当前运行的是源码开发模式，浏览器插件推荐直接使用：
+
+```text
+serviceUrl=http://127.0.0.1:18080
+localToken=dev-local-token
+clientType=browser-extension
+autoCaptureMagnet=true
+autoCaptureTorrent=true
+autoCaptureDownloadButton=true
+captureViaContextMenu=true
+```
+
+### 11.4 Windows 安装包模式固定配置
+
+如果你当前运行的是 `Windows exe` 安装包，浏览器插件当前固定使用以下配置：
+
+```text
+serviceUrl=http://127.0.0.1:18080
+localToken=mooddownload-packaged-local-token
+clientType=browser-extension
+autoCaptureMagnet=true
+autoCaptureTorrent=true
+autoCaptureDownloadButton=true
+captureViaContextMenu=true
+```
+
+对应说明：
+
+- `serviceUrl`
+  - 安装包模式固定为：`http://127.0.0.1:18080`
+- `localToken`
+  - 安装包模式固定为：`mooddownload-packaged-local-token`
+- `clientType`
+  - 固定填：`browser-extension`
+
+### 11.5 Windows 安装包模式下的注意事项
+
+如果你当前运行的是 `Windows exe` 安装包，需要特别注意：
+
+- 必须使用上面的固定配置
+- 不能继续使用插件默认占位值：
+  - `localToken=change-me-in-prod`
+
+当前已知限制：
+
+- 浏览器插件的安装仍然是“手工加载目录”，不是安装包自动安装
+- 如果 `18080` 端口已经被其他程序占用，安装包会直接启动失败，而不会再自动回退随机端口
+
+### 11.6 接管后的窗口行为
+
+当前已实现：
+
+- 浏览器左键 / 右键接管成功后
+- 如果桌面端已经在运行，会自动：
+  - 切回桌面端主窗口
+  - 聚焦窗口
+  - 打开当前新任务详情
+
+当前未实现：
+
+- 如果桌面端未启动，浏览器插件无法直接冷启动应用
+- 因此测试“自动切回下载器窗口”前，必须先确保桌面端进程已经启动
+
+## 12. 常见命令组合
+
+### 12.1 仅更新后端并重打包
 
 ```bash
 cd /Users/lying/IdeaProjects/moodDownload/desktop-app
@@ -334,7 +548,7 @@ npm run build:local-service
 npm run dist:win
 ```
 
-### 11.2 改了前端或 Electron 壳层后重打包
+### 12.2 改了前端或 Electron 壳层后重打包
 
 ```bash
 cd /Users/lying/IdeaProjects/moodDownload/desktop-app
@@ -342,7 +556,7 @@ npm run build
 npm run dist:win
 ```
 
-### 11.3 想重新准备干净的运行时资源后再打包
+### 12.3 想重新准备干净的运行时资源后再打包
 
 直接重新执行：
 
@@ -352,7 +566,30 @@ npm run prepare:win-runtime
 npm run dist:win
 ```
 
-## 12. 后续维护约束
+### 12.4 只改了浏览器插件，不重打 Windows 包
+
+```text
+1. 修改 browser-extension 目录下脚本或页面
+2. 在 Chrome / Edge 扩展管理页点击“重新加载”
+3. 无需执行 npm run dist:win
+```
+
+### 12.5 改了安装包模式固定地址或固定 token 后重打包
+
+如果改了以下任意一项：
+
+- `desktop-app/electron/main.cjs` 中的固定 `local-service` 端口
+- `desktop-app/electron/main.cjs` 中的固定 `localToken`
+
+则必须重新执行：
+
+```bash
+cd /Users/lying/IdeaProjects/moodDownload/desktop-app
+npm run build
+npm run dist:win
+```
+
+## 13. 后续维护约束
 
 后续如果继续改打包链路，建议优先遵守以下约束：
 
@@ -363,8 +600,11 @@ npm run dist:win
 5. 如果改了安装包运行目录、日志目录、资源目录，必须同步更新本文档。
 6. 如果调整受托管子进程日志方案，不要把 `WriteStream` 直接传给 `spawn(..., { stdio })`。
 7. 如果保留 `aria2` 的 `--input-file` / `--save-session` 参数，必须同步保留 session 文件预创建逻辑。
+8. 浏览器插件改动默认不进入 `Windows exe`，除非后续明确把插件纳入安装包分发流程。
+9. 浏览器插件的 `clientType` 默认保持 `browser-extension`，不要改成 `desktop-app`。
+10. 如果要保证“浏览器接管成功后切回下载器窗口”，必须确保桌面端进程已先启动。
 
-## 13. 当前文档对应的已验证结果
+## 14. 当前文档对应的已验证结果
 
 以下命令已在当前仓库实际执行通过：
 

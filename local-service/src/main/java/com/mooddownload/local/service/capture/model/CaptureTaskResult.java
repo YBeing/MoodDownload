@@ -17,6 +17,12 @@ public class CaptureTaskResult {
     /** 当前领域状态 */
     private String domainStatus;
 
+    /** 解析后的来源类型 */
+    private String resolvedSourceType;
+
+    /** 是否命中站点规则 */
+    private Boolean siteRuleMatched;
+
     public Boolean getAccepted() {
         return accepted;
     }
@@ -47,5 +53,21 @@ public class CaptureTaskResult {
 
     public void setDomainStatus(String domainStatus) {
         this.domainStatus = domainStatus;
+    }
+
+    public String getResolvedSourceType() {
+        return resolvedSourceType;
+    }
+
+    public void setResolvedSourceType(String resolvedSourceType) {
+        this.resolvedSourceType = resolvedSourceType;
+    }
+
+    public Boolean getSiteRuleMatched() {
+        return siteRuleMatched;
+    }
+
+    public void setSiteRuleMatched(Boolean siteRuleMatched) {
+        this.siteRuleMatched = siteRuleMatched;
     }
 }

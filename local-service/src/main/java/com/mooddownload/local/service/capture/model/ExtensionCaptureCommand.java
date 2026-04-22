@@ -20,6 +20,15 @@ public class ExtensionCaptureCommand {
     /** 建议展示名称 */
     private String suggestedName;
 
+    /** Referer */
+    private String referer;
+
+    /** User-Agent */
+    private String userAgent;
+
+    /** 请求头快照 JSON */
+    private String headerSnapshotJson;
+
     /** 调用方类型 */
     private String clientType;
 
@@ -61,6 +70,30 @@ public class ExtensionCaptureCommand {
 
     public void setSuggestedName(String suggestedName) {
         this.suggestedName = suggestedName;
+    }
+
+    public String getReferer() {
+        return referer;
+    }
+
+    public void setReferer(String referer) {
+        this.referer = referer;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
+    }
+
+    public String getHeaderSnapshotJson() {
+        return headerSnapshotJson;
+    }
+
+    public void setHeaderSnapshotJson(String headerSnapshotJson) {
+        this.headerSnapshotJson = headerSnapshotJson;
     }
 
     public String getClientType() {

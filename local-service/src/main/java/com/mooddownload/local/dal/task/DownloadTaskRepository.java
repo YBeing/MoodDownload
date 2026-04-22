@@ -17,6 +17,12 @@ public class DownloadTaskRepository {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(DownloadTaskRepository.class);
 
+    private static final String DEFAULT_ENTRY_TYPE = "MANUAL";
+
+    private static final String DEFAULT_SOURCE_PROVIDER = "GENERIC";
+
+    private static final String DEFAULT_ENGINE_PROFILE_CODE = "default";
+
     private final DownloadTaskMapper downloadTaskMapper;
 
     public DownloadTaskRepository(DownloadTaskMapper downloadTaskMapper) {
@@ -30,6 +36,7 @@ public class DownloadTaskRepository {
      * @return 任务主键
      */
     public Long save(DownloadTaskDO downloadTaskDO) {
+        normalizeBeforePersist(downloadTaskDO);
         int affectedRows = downloadTaskMapper.insert(downloadTaskDO);
         if (affectedRows != 1 || downloadTaskDO.getId() == null) {
             LOGGER.error("写入下载任务失败: taskCode={}", downloadTaskDO.getTaskCode());
@@ -139,6 +146,7 @@ public class DownloadTaskRepository {
      * @param downloadTaskDO 下载任务持久化对象
      */
     public void updateCoreSnapshot(DownloadTaskDO downloadTaskDO) {
+        normalizeBeforePersist(downloadTaskDO);
         int affectedRows = downloadTaskMapper.updateCoreSnapshot(downloadTaskDO);
         if (affectedRows != 1) {
             LOGGER.error("更新下载任务快照失败: taskId={}, taskCode={}",
@@ -147,5 +155,20 @@ public class DownloadTaskRepository {
         }
         LOGGER.info("更新下载任务快照成功: taskId={}, taskCode={}, domainStatus={}",
             downloadTaskDO.getId(), downloadTaskDO.getTaskCode(), downloadTaskDO.getDomainStatus());
+    }
+
+    private void normalizeBeforePersist(DownloadTaskDO downloadTaskDO) {
+        if (downloadTaskDO == null) {
+            throw new IllegalArgumentException("downloadTaskDO 不能为空");
+        }
+        if (downloadTaskDO.getEntryType() == null || downloadTaskDO.getEntryType().trim().isEmpty()) {
+            downloadTaskDO.setEntryType(DEFAULT_ENTRY_TYPE);
+        }
+        if (downloadTaskDO.getSourceProvider() == null || downloadTaskDO.getSourceProvider().trim().isEmpty()) {
+            downloadTaskDO.setSourceProvider(DEFAULT_SOURCE_PROVIDER);
+        }
+        if (downloadTaskDO.getEngineProfileCode() == null || downloadTaskDO.getEngineProfileCode().trim().isEmpty()) {
+            downloadTaskDO.setEngineProfileCode(DEFAULT_ENGINE_PROFILE_CODE);
+        }
     }
 }
