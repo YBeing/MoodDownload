@@ -83,6 +83,22 @@ function isBrowserCaptureLikeTask(task: TaskListItem) {
   return ["HTTP", "HTTPS", "MAGNET", "BT"].includes(task.sourceType);
 }
 
+/**
+ * 浏览器接管成功后，主动恢复并聚焦桌面主窗口，便于用户立即看到新任务。
+ *
+ * @returns Promise<void>
+ */
+async function revealDesktopWindowForCapture() {
+  if (!window.moodDownloadBridge?.window.showAndFocus) {
+    return;
+  }
+  try {
+    await window.moodDownloadBridge.window.showAndFocus();
+  } catch (error) {
+    logger.warn("恢复主窗口失败", error);
+  }
+}
+
 export function CaptureProvider({ children }: PropsWithChildren) {
   const { openCreateTask, openTaskDetail, pushToast } = useShell();
   const [browserCaptureEnabled, setBrowserCaptureEnabled] = useState(false);
@@ -103,6 +119,10 @@ export function CaptureProvider({ children }: PropsWithChildren) {
   const hasHydratedTaskIdsRef = useRef(false);
 
   const clipboardBridgeAvailable = typeof window.moodDownloadBridge?.clipboard.readText === "function";
+
+  useEffect(() => {
+    void taskStore.ensureHydrated();
+  }, []);
 
   useEffect(() => {
     let disposed = false;
@@ -157,6 +177,8 @@ export function CaptureProvider({ children }: PropsWithChildren) {
         return;
       }
 
+      void revealDesktopWindowForCapture();
+      openTaskDetail(newExternalTask.taskId);
       setLastExternalTaskName(newExternalTask.displayName);
       setExternalCaptureNotice({
         visible: true,

@@ -1,6 +1,12 @@
 DELETE FROM t_task_state_log;
 DELETE FROM t_download_attempt;
 DELETE FROM t_download_engine_task;
+DELETE FROM t_task_deletion_log;
+DELETE FROM t_external_entry_log;
+DELETE FROM t_external_provider_session;
+DELETE FROM t_source_site_rule;
+DELETE FROM t_bt_tracker_set;
+DELETE FROM t_engine_runtime_profile;
 DELETE FROM t_download_task;
 DELETE FROM t_download_config;
 

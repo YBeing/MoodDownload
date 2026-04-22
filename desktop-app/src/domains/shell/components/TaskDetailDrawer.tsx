@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteTask, getTaskDetail, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
+import { deleteTask, getTaskDetail, getTaskOpenContext, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
 import { useTaskEvents } from "@/app/providers/TaskEventsProvider";
 import { taskStore } from "@/domains/task/store/task-store";
 import { useShell } from "@/domains/shell/hooks/useShell";
 import { formatBytes, formatDateTime, formatProgress, formatSpeed } from "@/shared/utils/formatters";
-import type { TaskDetail, TaskEngineDetail, TaskTorrentFile } from "@/domains/task/models/task";
+import type { TaskDeleteMode, TaskDetail, TaskEngineDetail, TaskTorrentFile } from "@/domains/task/models/task";
 
 type DetailActionType = "pause" | "resume" | "retry" | "delete" | "refresh";
 type DetailNoticeTone = "success" | "warning" | "danger";
@@ -13,6 +13,11 @@ interface DetailActionNotice {
   title: string;
   message: string;
   tone: DetailNoticeTone;
+}
+
+interface DeleteDialogState {
+  deleteMode: TaskDeleteMode;
+  open: boolean;
 }
 
 interface ProgressSnapshotProps {
@@ -111,6 +116,10 @@ export function TaskDetailDrawer() {
   const [errorMessage, setErrorMessage] = useState("");
   const [acting, setActing] = useState<DetailActionType | null>(null);
   const [actionNotice, setActionNotice] = useState<DetailActionNotice | null>(null);
+  const [deleteDialogState, setDeleteDialogState] = useState<DeleteDialogState>({
+    deleteMode: "TASK_ONLY",
+    open: false
+  });
   const activeTaskIdRef = useRef<number | null>(null);
 
   /**
@@ -166,6 +175,10 @@ export function TaskDetailDrawer() {
       setRefreshing(false);
       setActing(null);
       setActionNotice(null);
+      setDeleteDialogState({
+        deleteMode: "TASK_ONLY",
+        open: false
+      });
       return;
     }
     void loadTaskDetail(detailTaskId);
@@ -229,21 +242,52 @@ export function TaskDetailDrawer() {
     }
   }
 
+  async function handleOpenFolder() {
+    if (!taskDetail) {
+      return;
+    }
+    try {
+      const openContext = await getTaskOpenContext(taskDetail.taskId);
+      if (!openContext.canOpen || !openContext.openFolderPath) {
+        pushToast(openContext.reason || "当前任务没有可打开的目录", "warning");
+        return;
+      }
+      const openResult = await window.moodDownloadBridge?.app.openPath?.(openContext.openFolderPath);
+      if (openResult) {
+        pushToast(openResult, "danger");
+        return;
+      }
+      pushToast("已打开下载目录", "success");
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "打开文件夹失败", "danger");
+    }
+  }
+
   async function handleDeleteTask() {
     if (!taskDetail) {
       return;
     }
-    if (!window.confirm(`确认删除任务“${taskDetail.displayName}”吗？已下载文件默认会保留。`)) {
+    setDeleteDialogState({
+      deleteMode: "TASK_ONLY",
+      open: true
+    });
+  }
+
+  async function confirmDeleteTask() {
+    if (!taskDetail) {
       return;
     }
 
     try {
       setActing("delete");
-      await deleteTask(taskDetail.taskId, false);
+      const deleteResult = await deleteTask(taskDetail.taskId, deleteDialogState.deleteMode);
       taskStore.removeTask(taskDetail.taskId);
       taskStore.scheduleSilentReload("detail-delete");
       closeTaskDetail();
-      pushToast(`已删除任务：${taskDetail.displayName}`, "success");
+      pushToast(
+        deleteResult.partialSuccess ? deleteResult.message || "任务已删除，但部分文件清理失败" : `已删除任务：${taskDetail.displayName}`,
+        deleteResult.partialSuccess ? "warning" : "success"
+      );
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "删除任务失败", "danger");
     } finally {
@@ -484,6 +528,16 @@ export function TaskDetailDrawer() {
           >
             {refreshing || acting === "refresh" ? "刷新中..." : "刷新详情"}
           </button>
+          {taskDetail?.domainStatus === "COMPLETED" ? (
+            <button
+              className="button-ghost"
+              disabled={loading || actionBusy}
+              onClick={() => void handleOpenFolder()}
+              type="button"
+            >
+              打开文件夹
+            </button>
+          ) : null}
           {primaryAction ? (
             <button
               className="button"
@@ -503,6 +557,110 @@ export function TaskDetailDrawer() {
             {acting === "delete" ? "删除中..." : "删除任务"}
           </button>
         </div>
+
+        {deleteDialogState.open ? (
+          <div aria-hidden="true" className="modal-backdrop" onClick={acting === "delete" ? undefined : () => {
+            setDeleteDialogState((currentState) => ({ ...currentState, open: false }));
+          }}>
+            <div
+              className="modal-card"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
+              style={{ width: "min(420px, calc(100vw - 32px))", padding: 18 }}
+            >
+              <div className="modal-head" style={{ marginBottom: 14 }}>
+                <div>
+                  <h2>删除任务</h2>
+                  <p>为“{taskDetail?.displayName}”选择删除策略。</p>
+                </div>
+                <button
+                  aria-label="关闭删除弹窗"
+                  className="drawer-close"
+                  disabled={acting === "delete"}
+                  onClick={() => {
+                    setDeleteDialogState((currentState) => ({ ...currentState, open: false }));
+                  }}
+                  type="button"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div style={{ display: "grid", gap: 10 }}>
+                {[
+                  {
+                    mode: "TASK_ONLY" as TaskDeleteMode,
+                    label: "仅删记录",
+                    description: "只删除任务记录，保留已下载文件和关联工件。"
+                  },
+                  {
+                    mode: "TASK_AND_OUTPUT" as TaskDeleteMode,
+                    label: "删除记录和源文件",
+                    description: "删除任务记录和已下载输出文件，保留种子等工件。"
+                  },
+                  {
+                    mode: "TASK_AND_ALL_ARTIFACTS" as TaskDeleteMode,
+                    label: "彻底删除所有相关文件",
+                    description: "删除任务记录、输出文件以及种子等关联工件。"
+                  }
+                ].map((option) => (
+                  <button
+                    className={deleteDialogState.deleteMode === option.mode ? "button" : "button-ghost"}
+                    disabled={acting === "delete"}
+                    key={option.mode}
+                    onClick={() => {
+                      setDeleteDialogState((currentState) => ({ ...currentState, deleteMode: option.mode }));
+                    }}
+                    style={{ justifyContent: "flex-start", textAlign: "left", padding: "12px 14px" }}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+                <span className="muted-text">
+                  {
+                    [
+                      {
+                        mode: "TASK_ONLY" as TaskDeleteMode,
+                        description: "只删除下载记录，保留源文件和其他关联文件。"
+                      },
+                      {
+                        mode: "TASK_AND_OUTPUT" as TaskDeleteMode,
+                        description: "删除下载记录和源文件，保留种子等其他关联文件。"
+                      },
+                      {
+                        mode: "TASK_AND_ALL_ARTIFACTS" as TaskDeleteMode,
+                        description: "删除下载记录、源文件以及其他相关文件。"
+                      }
+                    ].find((option) => option.mode === deleteDialogState.deleteMode)?.description
+                  }
+                </span>
+              </div>
+
+              <div className="drawer-actions" style={{ marginTop: 16 }}>
+                <button
+                  className="button-ghost"
+                  disabled={acting === "delete"}
+                  onClick={() => {
+                    setDeleteDialogState((currentState) => ({ ...currentState, open: false }));
+                  }}
+                  type="button"
+                >
+                  取消
+                </button>
+                <button
+                  className="button-danger"
+                  disabled={acting === "delete"}
+                  onClick={() => void confirmDeleteTask()}
+                  type="button"
+                >
+                  {acting === "delete" ? "删除中..." : "确认删除"}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </aside>
     </div>
   );

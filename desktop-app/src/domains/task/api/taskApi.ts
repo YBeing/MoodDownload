@@ -4,9 +4,12 @@ import type {
   TaskCreatePayload,
   TaskCreateResult,
   TaskDeleteResult,
+  TaskDeleteMode,
+  TaskDeletionPreview,
   TaskDetail,
   TaskListQuery,
   TaskListPage,
+  TaskOpenContext,
   TaskTorrentCreatePayload
 } from "@/domains/task/models/task";
 
@@ -34,6 +37,14 @@ export async function listTasks(query: TaskListQuery = {}) {
 
 export async function getTaskDetail(taskId: number) {
   return requestJson<TaskDetail>(`/api/tasks/${taskId}`);
+}
+
+export async function getTaskOpenContext(taskId: number) {
+  return requestJson<TaskOpenContext>(`/api/tasks/${taskId}/open-context`);
+}
+
+export async function previewTaskDeletion(taskId: number, deleteMode: TaskDeleteMode) {
+  return requestJson<TaskDeletionPreview>(`/api/tasks/${taskId}/deletion-preview?deleteMode=${deleteMode}`);
 }
 
 export async function createTask(payload: TaskCreatePayload) {
@@ -74,8 +85,8 @@ export async function retryTask(taskId: number) {
   });
 }
 
-export async function deleteTask(taskId: number, removeFiles = false) {
-  return requestJson<TaskDeleteResult>(`/api/tasks/${taskId}?removeFiles=${String(removeFiles)}`, {
+export async function deleteTask(taskId: number, deleteMode: TaskDeleteMode) {
+  return requestJson<TaskDeleteResult>(`/api/tasks/${taskId}?deleteMode=${deleteMode}`, {
     method: "DELETE"
   });
 }

@@ -8,13 +8,16 @@ import com.mooddownload.local.controller.task.convert.TaskControllerConverter;
 import com.mooddownload.local.controller.task.vo.TaskCreateRequest;
 import com.mooddownload.local.controller.task.vo.TaskCreateResponse;
 import com.mooddownload.local.controller.task.vo.TaskDeleteResponse;
+import com.mooddownload.local.controller.task.vo.TaskDeletionPreviewResponse;
 import com.mooddownload.local.controller.task.vo.TaskDetailResponse;
 import com.mooddownload.local.controller.task.vo.TaskListResponse;
+import com.mooddownload.local.controller.task.vo.TaskOpenContextResponse;
 import com.mooddownload.local.controller.task.vo.TaskOperationResponse;
 import com.mooddownload.local.service.config.ConfigService;
 import com.mooddownload.local.service.task.TaskDeleteExecutionResult;
 import com.mooddownload.local.service.task.TaskQueryService;
 import com.mooddownload.local.service.task.TaskWorkflowService;
+import com.mooddownload.local.service.task.model.TaskDeleteMode;
 import com.mooddownload.local.service.task.model.TaskOperationResult;
 import com.mooddownload.local.service.task.model.TaskPageQuery;
 import java.io.IOException;
@@ -199,13 +202,50 @@ public class TaskController {
     @DeleteMapping("/{id}")
     public ApiResponse<TaskDeleteResponse> deleteTask(
         @PathVariable("id") Long taskId,
+        @RequestParam(value = "deleteMode", required = false) String deleteMode,
         @RequestParam(value = "removeFiles", defaultValue = "false") boolean removeFiles
     ) {
-        TaskDeleteExecutionResult taskDeleteExecutionResult = taskWorkflowService.deleteTask(taskId, removeFiles);
-        return ApiResponse.success(taskControllerConverter.toDeleteResponse(
-            taskDeleteExecutionResult.getTaskOperationResult(),
-            taskDeleteExecutionResult.isFilesRemoved()
+        TaskDeleteExecutionResult taskDeleteExecutionResult = taskWorkflowService.deleteTask(
+            taskId,
+            resolveDeleteMode(deleteMode, removeFiles)
+        );
+        return ApiResponse.success(taskControllerConverter.toDeleteResponse(taskDeleteExecutionResult));
+    }
+
+    /**
+     * 预览任务删除影响范围。
+     *
+     * @param taskId 任务 ID
+     * @param deleteMode 删除模式
+     * @return 统一响应
+     */
+    @GetMapping("/{id}/deletion-preview")
+    public ApiResponse<TaskDeletionPreviewResponse> previewDeletion(
+        @PathVariable("id") Long taskId,
+        @RequestParam(value = "deleteMode", defaultValue = "TASK_ONLY") String deleteMode
+    ) {
+        return ApiResponse.success(taskControllerConverter.toDeletionPreviewResponse(
+            taskWorkflowService.previewDeletion(taskId, resolveDeleteMode(deleteMode, false))
         ));
+    }
+
+    /**
+     * 查询打开文件夹上下文。
+     *
+     * @param taskId 任务 ID
+     * @return 统一响应
+     */
+    @GetMapping("/{id}/open-context")
+    public ApiResponse<TaskOpenContextResponse> getOpenContext(@PathVariable("id") Long taskId) {
+        return ApiResponse.success(taskControllerConverter.toOpenContextResponse(taskWorkflowService.getOpenContext(taskId)));
+    }
+
+    private TaskDeleteMode resolveDeleteMode(String deleteMode, boolean removeFiles) {
+        TaskDeleteMode resolvedDeleteMode = TaskDeleteMode.fromCode(deleteMode);
+        if (resolvedDeleteMode != null) {
+            return resolvedDeleteMode;
+        }
+        return removeFiles ? TaskDeleteMode.TASK_AND_ALL_ARTIFACTS : TaskDeleteMode.TASK_ONLY;
     }
 
     private String storeTorrentFile(String clientRequestId, MultipartFile torrentFile) {

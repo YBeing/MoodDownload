@@ -3,16 +3,20 @@ package com.mooddownload.local.controller.task.convert;
 import com.mooddownload.local.controller.task.vo.TaskCreateRequest;
 import com.mooddownload.local.controller.task.vo.TaskCreateResponse;
 import com.mooddownload.local.controller.task.vo.TaskDeleteResponse;
+import com.mooddownload.local.controller.task.vo.TaskDeletionPreviewResponse;
 import com.mooddownload.local.controller.task.vo.TaskDetailResponse;
 import com.mooddownload.local.controller.task.vo.TaskEngineDetailVO;
 import com.mooddownload.local.controller.task.vo.TaskListItemVO;
 import com.mooddownload.local.controller.task.vo.TaskListResponse;
+import com.mooddownload.local.controller.task.vo.TaskOpenContextResponse;
 import com.mooddownload.local.controller.task.vo.TaskOperationResponse;
 import com.mooddownload.local.controller.task.vo.TaskTorrentFileVO;
 import com.mooddownload.local.service.task.BtSourceHashResolver;
 import com.mooddownload.local.service.task.model.CreateTaskCommand;
 import com.mooddownload.local.service.task.model.DownloadEngineTaskModel;
 import com.mooddownload.local.service.task.model.DownloadTaskModel;
+import com.mooddownload.local.service.task.model.TaskDeletionPreview;
+import com.mooddownload.local.service.task.model.TaskOpenContextModel;
 import com.mooddownload.local.service.task.model.TaskOperationResult;
 import com.mooddownload.local.service.task.model.TaskPageResult;
 import com.mooddownload.local.service.task.model.TorrentFileItem;
@@ -178,16 +182,53 @@ public class TaskControllerConverter {
     /**
      * 将任务操作结果转换为删除响应。
      *
-     * @param taskOperationResult 任务操作结果
-     * @param filesRemoved 文件是否删除
+     * @param executionResult 删除执行结果
      * @return 删除响应
      */
-    public TaskDeleteResponse toDeleteResponse(TaskOperationResult taskOperationResult, boolean filesRemoved) {
+    public TaskDeleteResponse toDeleteResponse(com.mooddownload.local.service.task.TaskDeleteExecutionResult executionResult) {
         TaskDeleteResponse taskDeleteResponse = new TaskDeleteResponse();
-        taskDeleteResponse.setTaskId(taskOperationResult.getTaskModel().getId());
+        taskDeleteResponse.setTaskId(executionResult.getTaskOperationResult().getTaskModel().getId());
         taskDeleteResponse.setRemoved(Boolean.TRUE);
-        taskDeleteResponse.setFilesRemoved(filesRemoved);
+        taskDeleteResponse.setDeleteMode(executionResult.getDeleteMode().name());
+        taskDeleteResponse.setOutputRemoved(executionResult.isOutputRemoved());
+        taskDeleteResponse.setArtifactRemoved(executionResult.isArtifactRemoved());
+        taskDeleteResponse.setPartialSuccess(executionResult.isPartialSuccess());
+        taskDeleteResponse.setMessage(executionResult.isPartialSuccess()
+            ? "任务已删除，但部分文件清理失败"
+            : "任务删除成功");
         return taskDeleteResponse;
+    }
+
+    /**
+     * 将删除预览模型转换为接口响应。
+     *
+     * @param preview 删除预览模型
+     * @return 接口响应
+     */
+    public TaskDeletionPreviewResponse toDeletionPreviewResponse(TaskDeletionPreview preview) {
+        TaskDeletionPreviewResponse response = new TaskDeletionPreviewResponse();
+        response.setTaskId(preview.getTaskId());
+        response.setDeleteMode(preview.getDeleteMode() == null ? null : preview.getDeleteMode().name());
+        response.setTargets(preview.getTargets());
+        response.setWarnings(preview.getWarnings());
+        response.setRemovable(preview.getRemovable());
+        return response;
+    }
+
+    /**
+     * 将打开上下文模型转换为接口响应。
+     *
+     * @param contextModel 打开上下文模型
+     * @return 接口响应
+     */
+    public TaskOpenContextResponse toOpenContextResponse(TaskOpenContextModel contextModel) {
+        TaskOpenContextResponse response = new TaskOpenContextResponse();
+        response.setTaskId(contextModel.getTaskId());
+        response.setOpenFolderPath(contextModel.getOpenFolderPath());
+        response.setPrimaryFilePath(contextModel.getPrimaryFilePath());
+        response.setCanOpen(contextModel.getCanOpen());
+        response.setReason(contextModel.getReason());
+        return response;
     }
 
     private TaskListItemVO toListItemVO(DownloadTaskModel downloadTaskModel) {

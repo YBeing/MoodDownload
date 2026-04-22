@@ -25,6 +25,15 @@ public class ExtensionCaptureRequest {
     /** 浏览器建议文件名 */
     private String suggestedName;
 
+    /** Referer */
+    private String referer;
+
+    /** User-Agent */
+    private String userAgent;
+
+    /** 请求头快照 JSON */
+    private String headerSnapshotJson;
+
     public String getClientRequestId() {
         return clientRequestId;
     }
@@ -63,5 +72,29 @@ public class ExtensionCaptureRequest {
 
     public void setSuggestedName(String suggestedName) {
         this.suggestedName = suggestedName;
+    }
+
+    public String getReferer() {
+        return referer;
+    }
+
+    public void setReferer(String referer) {
+        this.referer = referer;
+    }
+
+    public String getUserAgent() {
+        return userAgent;
+    }
+
+    public void setUserAgent(String userAgent) {
+        this.userAgent = userAgent;
+    }
+
+    public String getHeaderSnapshotJson() {
+        return headerSnapshotJson;
+    }
+
+    public void setHeaderSnapshotJson(String headerSnapshotJson) {
+        this.headerSnapshotJson = headerSnapshotJson;
     }
 }

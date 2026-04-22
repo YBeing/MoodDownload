@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { deleteTask, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
+import { deleteTask, getTaskOpenContext, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
 import { useTaskEvents } from "@/app/providers/TaskEventsProvider";
 import { useShell } from "@/domains/shell/hooks/useShell";
-import type { TaskDomainStatus, TaskListItem } from "@/domains/task/models/task";
+import type { TaskDeleteMode, TaskDomainStatus, TaskListItem } from "@/domains/task/models/task";
 import { taskStore, useTaskStore } from "@/domains/task/store/task-store";
 import type { TaskRouteKey } from "@/shared/constants/navigation";
 
@@ -138,13 +138,43 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
     }
   }
 
-  async function removeTask(task: TaskListItem) {
+  async function openTaskFolder(task: TaskListItem) {
+    try {
+      const openContext = await getTaskOpenContext(task.taskId);
+      if (!openContext.canOpen || !openContext.openFolderPath) {
+        pushToast(openContext.reason || "当前任务没有可打开的目录", "warning");
+        return;
+      }
+      if (!window.moodDownloadBridge?.app.openPath) {
+        pushToast("当前环境不支持打开本地目录", "warning");
+        return;
+      }
+      const openResult = await window.moodDownloadBridge.app.openPath(openContext.openFolderPath);
+      if (openResult) {
+        pushToast(openResult, "danger");
+        return;
+      }
+      showActionFeedback(task.taskId, {
+        message: "已打开下载目录。",
+        tone: "success"
+      });
+    } catch (error) {
+      pushToast(error instanceof Error ? error.message : "打开文件夹失败", "danger");
+    }
+  }
+
+  async function removeTask(task: TaskListItem, deleteMode: TaskDeleteMode) {
     try {
       setBusyTaskId(task.taskId);
-      await deleteTask(task.taskId, false);
+      const deleteResult = await deleteTask(task.taskId, deleteMode);
       taskStore.removeTask(task.taskId);
       taskStore.scheduleSilentReload("delete-reconcile");
-      pushToast(`已删除任务：${task.displayName}`, "success");
+      pushToast(
+        deleteResult.partialSuccess
+          ? deleteResult.message || `任务已删除，但部分文件清理失败：${task.displayName}`
+          : deleteResult.message || `已删除任务：${task.displayName}`,
+        deleteResult.partialSuccess ? "warning" : "success"
+      );
     } catch (error) {
       pushToast(error instanceof Error ? error.message : "删除任务失败", "danger");
     } finally {
@@ -175,6 +205,7 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
     summary,
     reloadTasks,
     runPrimaryAction,
+    openTaskFolder,
     removeTask,
     openTaskDetail,
     resolvePrimaryActionLabel

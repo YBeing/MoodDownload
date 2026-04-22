@@ -89,6 +89,24 @@ export interface TaskDetail {
   updatedAt: number;
 }
 
+export type TaskDeleteMode = "TASK_ONLY" | "TASK_AND_OUTPUT" | "TASK_AND_ALL_ARTIFACTS";
+
+export interface TaskDeletionPreview {
+  taskId: number;
+  deleteMode: TaskDeleteMode;
+  removable: boolean;
+  targets: string[];
+  warnings: string[];
+}
+
+export interface TaskOpenContext {
+  taskId: number;
+  openFolderPath?: string | null;
+  primaryFilePath?: string | null;
+  canOpen: boolean;
+  reason?: string | null;
+}
+
 export interface TaskCommandResult {
   taskId: number;
   domainStatus: TaskDomainStatus | string;
@@ -113,7 +131,11 @@ export interface TaskTorrentCreatePayload {
 export interface TaskDeleteResult {
   taskId: number;
   removed: boolean;
-  filesRemoved: boolean;
+  deleteMode: TaskDeleteMode;
+  outputRemoved: boolean;
+  artifactRemoved: boolean;
+  partialSuccess: boolean;
+  message: string;
 }
 
 export interface TaskSseEvent {

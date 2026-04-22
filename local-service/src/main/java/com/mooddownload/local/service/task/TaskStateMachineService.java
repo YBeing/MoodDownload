@@ -23,6 +23,12 @@ public class TaskStateMachineService {
 
     private static final int DEFAULT_QUEUE_PRIORITY = 100;
 
+    private static final String DEFAULT_ENTRY_TYPE = "MANUAL";
+
+    private static final String DEFAULT_SOURCE_PROVIDER = "GENERIC";
+
+    private static final String DEFAULT_ENGINE_PROFILE_CODE = "default";
+
     /**
      * 初始化任务聚合根。
      *
@@ -51,6 +57,17 @@ public class TaskStateMachineService {
         downloadTaskModel.setRetryCount(0);
         downloadTaskModel.setMaxRetryCount(resolveMaxRetryCount(command.getMaxRetryCount()));
         downloadTaskModel.setClientRequestId(command.getClientRequestId().trim());
+        downloadTaskModel.setEntryType(resolveOrDefault(command.getEntryType(), DEFAULT_ENTRY_TYPE));
+        downloadTaskModel.setSourceProvider(resolveOrDefault(command.getSourceProvider(), DEFAULT_SOURCE_PROVIDER));
+        downloadTaskModel.setSourceSiteHost(normalizeBlank(command.getSourceSiteHost()));
+        downloadTaskModel.setEntryContextJson(normalizeBlank(command.getEntryContextJson()));
+        downloadTaskModel.setEngineProfileCode(resolveOrDefault(
+            command.getEngineProfileCode(),
+            DEFAULT_ENGINE_PROFILE_CODE
+        ));
+        downloadTaskModel.setOpenFolderPath(null);
+        downloadTaskModel.setPrimaryFilePath(null);
+        downloadTaskModel.setCompletedAt(null);
         downloadTaskModel.setVersion(0);
         downloadTaskModel.setCreatedAt(now);
         downloadTaskModel.setUpdatedAt(now);
@@ -279,6 +296,10 @@ public class TaskStateMachineService {
 
     private String normalizeBlank(String value) {
         return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
+    private String resolveOrDefault(String value, String defaultValue) {
+        return StringUtils.hasText(value) ? value.trim() : defaultValue;
     }
 
     private int safeInt(Integer value) {

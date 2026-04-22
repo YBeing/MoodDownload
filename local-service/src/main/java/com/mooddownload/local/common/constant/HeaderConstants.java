@@ -13,6 +13,8 @@ public final class HeaderConstants {
 
     public static final String CLIENT_TYPE_NATIVE_HOST = "native-host";
 
+    public static final String CLIENT_TYPE_BROWSER_EXTENSION = "browser-extension";
+
     public static final String CLIENT_TYPE_DESKTOP_APP = "desktop-app";
 
     private HeaderConstants() {

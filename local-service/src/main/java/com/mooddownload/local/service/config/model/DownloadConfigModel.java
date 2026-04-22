@@ -26,6 +26,12 @@ public class DownloadConfigModel {
     /** 自动启动开关 */
     private Boolean autoStartEnabled;
 
+    /** 当前生效的引擎配置模板编码 */
+    private String activeEngineProfileCode;
+
+    /** 删除文件是否优先进入回收站 */
+    private Boolean deleteToRecycleBinEnabled;
+
     /** 更新时间 */
     private Long updatedAt;
 
@@ -83,6 +89,22 @@ public class DownloadConfigModel {
 
     public void setAutoStartEnabled(Boolean autoStartEnabled) {
         this.autoStartEnabled = autoStartEnabled;
+    }
+
+    public String getActiveEngineProfileCode() {
+        return activeEngineProfileCode;
+    }
+
+    public void setActiveEngineProfileCode(String activeEngineProfileCode) {
+        this.activeEngineProfileCode = activeEngineProfileCode;
+    }
+
+    public Boolean getDeleteToRecycleBinEnabled() {
+        return deleteToRecycleBinEnabled;
+    }
+
+    public void setDeleteToRecycleBinEnabled(Boolean deleteToRecycleBinEnabled) {
+        this.deleteToRecycleBinEnabled = deleteToRecycleBinEnabled;
     }
 
     public Long getUpdatedAt() {

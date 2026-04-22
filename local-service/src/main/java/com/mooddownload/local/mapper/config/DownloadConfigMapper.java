@@ -12,7 +12,7 @@ public interface DownloadConfigMapper {
 
     String BASE_COLUMNS = "id, default_save_dir, max_concurrent_downloads, max_global_download_speed, "
         + "max_global_upload_speed, browser_capture_enabled, clipboard_monitor_enabled, auto_start_enabled, "
-        + "local_api_token, created_at, updated_at";
+        + "active_engine_profile_code, delete_to_recycle_bin_enabled, local_api_token, created_at, updated_at";
 
     /**
      * 按主键查询下载配置。
@@ -31,12 +31,12 @@ public interface DownloadConfigMapper {
      */
     @Insert("INSERT INTO t_download_config ("
         + "id, default_save_dir, max_concurrent_downloads, max_global_download_speed, max_global_upload_speed, "
-        + "browser_capture_enabled, clipboard_monitor_enabled, auto_start_enabled, local_api_token, created_at, "
-        + "updated_at"
+        + "browser_capture_enabled, clipboard_monitor_enabled, auto_start_enabled, active_engine_profile_code, "
+        + "delete_to_recycle_bin_enabled, local_api_token, created_at, updated_at"
         + ") VALUES ("
         + "#{id}, #{defaultSaveDir}, #{maxConcurrentDownloads}, #{maxGlobalDownloadSpeed}, "
         + "#{maxGlobalUploadSpeed}, #{browserCaptureEnabled}, #{clipboardMonitorEnabled}, #{autoStartEnabled}, "
-        + "#{localApiToken}, #{createdAt}, #{updatedAt})")
+        + "#{activeEngineProfileCode}, #{deleteToRecycleBinEnabled}, #{localApiToken}, #{createdAt}, #{updatedAt})")
     int insert(DownloadConfigDO downloadConfigDO);
 
     /**
@@ -53,6 +53,8 @@ public interface DownloadConfigMapper {
         + "browser_capture_enabled = #{browserCaptureEnabled}, "
         + "clipboard_monitor_enabled = #{clipboardMonitorEnabled}, "
         + "auto_start_enabled = #{autoStartEnabled}, "
+        + "active_engine_profile_code = #{activeEngineProfileCode}, "
+        + "delete_to_recycle_bin_enabled = #{deleteToRecycleBinEnabled}, "
         + "local_api_token = #{localApiToken}, "
         + "updated_at = #{updatedAt} "
         + "WHERE id = #{id}")

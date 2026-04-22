@@ -337,7 +337,10 @@ class TaskControllerIntegrationTests {
             .andExpect(jsonPath("$.code").value("0"))
             .andExpect(jsonPath("$.data.taskId").value(failedTaskId))
             .andExpect(jsonPath("$.data.removed").value(true))
-            .andExpect(jsonPath("$.data.filesRemoved").value(true));
+            .andExpect(jsonPath("$.data.deleteMode").value("TASK_AND_ALL_ARTIFACTS"))
+            .andExpect(jsonPath("$.data.outputRemoved").value(true))
+            .andExpect(jsonPath("$.data.artifactRemoved").value(true))
+            .andExpect(jsonPath("$.data.partialSuccess").value(false));
 
         assertThat(downloadTaskRepository.findById(runningTaskId))
             .get()

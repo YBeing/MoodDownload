@@ -74,6 +74,12 @@ public class ConfigService {
         if (command.getClipboardMonitorEnabled() != null) {
             updatedConfig.setClipboardMonitorEnabled(downloadConfigConverter.toInt(command.getClipboardMonitorEnabled()));
         }
+        if (StringUtils.hasText(command.getActiveEngineProfileCode())) {
+            updatedConfig.setActiveEngineProfileCode(command.getActiveEngineProfileCode().trim());
+        }
+        if (command.getDeleteToRecycleBinEnabled() != null) {
+            updatedConfig.setDeleteToRecycleBinEnabled(downloadConfigConverter.toInt(command.getDeleteToRecycleBinEnabled()));
+        }
         updatedConfig.setUpdatedAt(System.currentTimeMillis());
         downloadConfigRepository.saveOrUpdate(updatedConfig);
         LOGGER.info("更新下载配置成功: defaultSaveDir={}, maxConcurrentDownloads={}",
@@ -134,6 +140,10 @@ public class ConfigService {
         }
         if (command.getMaxGlobalUploadSpeed() != null && command.getMaxGlobalUploadSpeed() < 0) {
             throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "maxGlobalUploadSpeed 不能小于 0");
+        }
+        if (StringUtils.hasText(command.getActiveEngineProfileCode())
+            && command.getActiveEngineProfileCode().trim().isEmpty()) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "activeEngineProfileCode 不能为空字符串");
         }
     }
 }

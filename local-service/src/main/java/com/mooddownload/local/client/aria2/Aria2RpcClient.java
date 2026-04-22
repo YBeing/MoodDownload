@@ -209,6 +209,23 @@ public class Aria2RpcClient {
     }
 
     /**
+     * 更新 aria2 全局配置。
+     *
+     * @param options 全局配置项
+     * @return RPC 返回结果
+     */
+    public String changeGlobalOption(Map<String, String> options) {
+        validateEnabled();
+        if (options == null || options.isEmpty()) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "options 不能为空");
+        }
+        JsonNode result = invoke("aria2.changeGlobalOption", Collections.<Object>singletonList(options));
+        String rpcResult = result.asText();
+        LOGGER.info("aria2 changeGlobalOption 调用成功: optionSize={}, result={}", options.size(), rpcResult);
+        return rpcResult;
+    }
+
+    /**
      * 查询活跃任务列表。
      *
      * @return 任务状态列表

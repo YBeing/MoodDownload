@@ -16,7 +16,9 @@ public interface DownloadTaskMapper {
         + "torrent_file_list_json, display_name, "
         + "domain_status, engine_status, engine_gid, queue_priority, save_dir, total_size_bytes, "
         + "completed_size_bytes, download_speed_bps, upload_speed_bps, error_code, error_message, retry_count, "
-        + "max_retry_count, client_request_id, last_sync_at, version, created_at, updated_at";
+        + "max_retry_count, client_request_id, entry_type, source_provider, source_site_host, "
+        + "entry_context_json, engine_profile_code, open_folder_path, primary_file_path, completed_at, "
+        + "last_sync_at, version, created_at, updated_at";
 
     /**
      * 新增下载任务记录。
@@ -29,14 +31,17 @@ public interface DownloadTaskMapper {
         + "display_name, domain_status, "
         + "engine_status, engine_gid, queue_priority, save_dir, total_size_bytes, completed_size_bytes, "
         + "download_speed_bps, upload_speed_bps, error_code, error_message, retry_count, max_retry_count, "
-        + "client_request_id, last_sync_at, version, created_at, updated_at"
+        + "client_request_id, entry_type, source_provider, source_site_host, entry_context_json, "
+        + "engine_profile_code, open_folder_path, primary_file_path, completed_at, last_sync_at, version, "
+        + "created_at, updated_at"
         + ") VALUES ("
         + "#{taskCode}, #{sourceType}, #{sourceUri}, #{sourceHash}, #{torrentFilePath}, #{torrentFileListJson}, "
         + "#{displayName}, "
         + "#{domainStatus}, #{engineStatus}, #{engineGid}, #{queuePriority}, #{saveDir}, #{totalSizeBytes}, "
         + "#{completedSizeBytes}, #{downloadSpeedBps}, #{uploadSpeedBps}, #{errorCode}, #{errorMessage}, "
-        + "#{retryCount}, #{maxRetryCount}, #{clientRequestId}, #{lastSyncAt}, #{version}, #{createdAt}, "
-        + "#{updatedAt})")
+        + "#{retryCount}, #{maxRetryCount}, #{clientRequestId}, #{entryType}, #{sourceProvider}, "
+        + "#{sourceSiteHost}, #{entryContextJson}, #{engineProfileCode}, #{openFolderPath}, "
+        + "#{primaryFilePath}, #{completedAt}, #{lastSyncAt}, #{version}, #{createdAt}, #{updatedAt})")
     @SelectKey(statement = "SELECT last_insert_rowid()", keyProperty = "id", before = false, resultType = Long.class)
     int insert(DownloadTaskDO downloadTaskDO);
 
@@ -190,6 +195,14 @@ public interface DownloadTaskMapper {
         + "error_message = #{errorMessage}, "
         + "retry_count = #{retryCount}, "
         + "max_retry_count = #{maxRetryCount}, "
+        + "entry_type = #{entryType}, "
+        + "source_provider = #{sourceProvider}, "
+        + "source_site_host = #{sourceSiteHost}, "
+        + "entry_context_json = #{entryContextJson}, "
+        + "engine_profile_code = #{engineProfileCode}, "
+        + "open_folder_path = #{openFolderPath}, "
+        + "primary_file_path = #{primaryFilePath}, "
+        + "completed_at = #{completedAt}, "
         + "last_sync_at = #{lastSyncAt}, "
         + "version = #{version}, "
         + "updated_at = #{updatedAt} "

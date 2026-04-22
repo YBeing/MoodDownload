@@ -28,7 +28,7 @@ public class CaptureTaskConverter {
     public CreateTaskCommand toCreateTaskCommand(ExtensionCaptureCommand command, String resolvedSaveDir) {
         CreateTaskCommand createTaskCommand = new CreateTaskCommand();
         createTaskCommand.setClientRequestId(command.getClientRequestId());
-        createTaskCommand.setSourceType(resolveSourceType(command.getDownloadUrl()));
+        createTaskCommand.setSourceType(resolveSourceTypeCode(command.getDownloadUrl()));
         createTaskCommand.setSourceUri(command.getDownloadUrl().trim());
         createTaskCommand.setDisplayName(normalizeBlank(command.getSuggestedName()));
         createTaskCommand.setSaveDir(resolvedSaveDir);
@@ -51,7 +51,7 @@ public class CaptureTaskConverter {
     ) {
         CreateTaskCommand createTaskCommand = new CreateTaskCommand();
         createTaskCommand.setClientRequestId(command.getClientRequestId());
-        createTaskCommand.setSourceType(resolveSourceType(downloadUrl));
+        createTaskCommand.setSourceType(resolveSourceTypeCode(downloadUrl));
         createTaskCommand.setSourceUri(downloadUrl);
         createTaskCommand.setDisplayName(normalizeBlank(command.getSuggestedName()));
         createTaskCommand.setSaveDir(resolvedSaveDir);
@@ -74,7 +74,13 @@ public class CaptureTaskConverter {
         return captureTaskResult;
     }
 
-    private String resolveSourceType(String downloadUrl) {
+    /**
+     * 解析下载地址对应的来源类型编码。
+     *
+     * @param downloadUrl 下载地址
+     * @return 来源类型编码
+     */
+    public String resolveSourceTypeCode(String downloadUrl) {
         if (!StringUtils.hasText(downloadUrl)) {
             throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "downloadUrl 不能为空");
         }

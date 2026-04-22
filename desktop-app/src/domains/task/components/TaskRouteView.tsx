@@ -1,9 +1,11 @@
 import { useState } from "react";
 import { useTaskEvents } from "@/app/providers/TaskEventsProvider";
+import { TaskDeleteDialog } from "@/domains/task/components/TaskDeleteDialog";
 import { TaskSummaryBar } from "@/domains/task/components/TaskSummaryBar";
 import { TaskTable } from "@/domains/task/components/TaskTable";
 import { useTaskCollection } from "@/domains/task/hooks/useTaskCollection";
 import { useShell } from "@/domains/shell/hooks/useShell";
+import type { TaskDeleteMode, TaskListItem } from "@/domains/task/models/task";
 import type { TaskRouteKey } from "@/shared/constants/navigation";
 
 interface TaskRouteViewProps {
@@ -14,6 +16,7 @@ interface TaskRouteViewProps {
 
 export function TaskRouteView(props: TaskRouteViewProps) {
   const [keyword, setKeyword] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<TaskListItem | null>(null);
   const { openCreateTask } = useShell();
   const { status, statusMessage } = useTaskEvents();
   const taskCollection = useTaskCollection(props.viewKey);
@@ -128,13 +131,29 @@ export function TaskRouteView(props: TaskRouteViewProps) {
             actionFeedbacks={taskCollection.actionFeedbacks}
             busyTaskId={taskCollection.busyTaskId}
             items={filteredTasks}
-            onDelete={taskCollection.removeTask}
+            onDelete={(task) => setDeleteTarget(task)}
+            onOpenFolder={taskCollection.openTaskFolder}
             onOpenDetail={taskCollection.openTaskDetail}
             onPrimaryAction={taskCollection.runPrimaryAction}
             resolvePrimaryActionLabel={taskCollection.resolvePrimaryActionLabel}
           />
         ) : null}
       </section>
+
+      <TaskDeleteDialog
+        busy={taskCollection.busyTaskId === deleteTarget?.taskId}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={async (deleteMode: TaskDeleteMode) => {
+          if (!deleteTarget) {
+            return;
+          }
+          await taskCollection.removeTask(deleteTarget, deleteMode);
+          setDeleteTarget(null);
+        }}
+        open={Boolean(deleteTarget)}
+        taskDisplayName={deleteTarget?.displayName || ""}
+        taskId={deleteTarget?.taskId || null}
+      />
     </>
   );
 }

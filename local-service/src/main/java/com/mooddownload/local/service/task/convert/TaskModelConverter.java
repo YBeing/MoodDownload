@@ -23,6 +23,12 @@ public class TaskModelConverter {
     private static final TypeReference<List<TorrentFileItem>> TORRENT_FILE_LIST_TYPE =
         new TypeReference<List<TorrentFileItem>>() { };
 
+    private static final String DEFAULT_ENTRY_TYPE = "MANUAL";
+
+    private static final String DEFAULT_SOURCE_PROVIDER = "GENERIC";
+
+    private static final String DEFAULT_ENGINE_PROFILE_CODE = "default";
+
     private final ObjectMapper objectMapper;
 
     public TaskModelConverter(ObjectMapper objectMapper) {
@@ -64,6 +70,17 @@ public class TaskModelConverter {
         downloadTaskModel.setRetryCount(downloadTaskDO.getRetryCount());
         downloadTaskModel.setMaxRetryCount(downloadTaskDO.getMaxRetryCount());
         downloadTaskModel.setClientRequestId(downloadTaskDO.getClientRequestId());
+        downloadTaskModel.setEntryType(resolveText(downloadTaskDO.getEntryType(), DEFAULT_ENTRY_TYPE));
+        downloadTaskModel.setSourceProvider(resolveText(downloadTaskDO.getSourceProvider(), DEFAULT_SOURCE_PROVIDER));
+        downloadTaskModel.setSourceSiteHost(downloadTaskDO.getSourceSiteHost());
+        downloadTaskModel.setEntryContextJson(downloadTaskDO.getEntryContextJson());
+        downloadTaskModel.setEngineProfileCode(resolveText(
+            downloadTaskDO.getEngineProfileCode(),
+            DEFAULT_ENGINE_PROFILE_CODE
+        ));
+        downloadTaskModel.setOpenFolderPath(downloadTaskDO.getOpenFolderPath());
+        downloadTaskModel.setPrimaryFilePath(downloadTaskDO.getPrimaryFilePath());
+        downloadTaskModel.setCompletedAt(downloadTaskDO.getCompletedAt());
         downloadTaskModel.setLastSyncAt(downloadTaskDO.getLastSyncAt());
         downloadTaskModel.setVersion(downloadTaskDO.getVersion());
         downloadTaskModel.setCreatedAt(downloadTaskDO.getCreatedAt());
@@ -101,6 +118,17 @@ public class TaskModelConverter {
         downloadTaskDO.setRetryCount(downloadTaskModel.getRetryCount());
         downloadTaskDO.setMaxRetryCount(downloadTaskModel.getMaxRetryCount());
         downloadTaskDO.setClientRequestId(downloadTaskModel.getClientRequestId());
+        downloadTaskDO.setEntryType(resolveText(downloadTaskModel.getEntryType(), DEFAULT_ENTRY_TYPE));
+        downloadTaskDO.setSourceProvider(resolveText(downloadTaskModel.getSourceProvider(), DEFAULT_SOURCE_PROVIDER));
+        downloadTaskDO.setSourceSiteHost(downloadTaskModel.getSourceSiteHost());
+        downloadTaskDO.setEntryContextJson(downloadTaskModel.getEntryContextJson());
+        downloadTaskDO.setEngineProfileCode(resolveText(
+            downloadTaskModel.getEngineProfileCode(),
+            DEFAULT_ENGINE_PROFILE_CODE
+        ));
+        downloadTaskDO.setOpenFolderPath(downloadTaskModel.getOpenFolderPath());
+        downloadTaskDO.setPrimaryFilePath(downloadTaskModel.getPrimaryFilePath());
+        downloadTaskDO.setCompletedAt(downloadTaskModel.getCompletedAt());
         downloadTaskDO.setLastSyncAt(downloadTaskModel.getLastSyncAt());
         downloadTaskDO.setVersion(downloadTaskModel.getVersion());
         downloadTaskDO.setCreatedAt(downloadTaskModel.getCreatedAt());
@@ -157,5 +185,9 @@ public class TaskModelConverter {
         } catch (JsonProcessingException exception) {
             throw new IllegalStateException("序列化 BT 文件列表失败", exception);
         }
+    }
+
+    private String resolveText(String value, String defaultValue) {
+        return StringUtils.hasText(value) ? value.trim() : defaultValue;
     }
 }

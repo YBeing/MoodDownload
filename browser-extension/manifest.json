@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "MoodDownload Browser Capture",
+  "version": "0.0.1",
+  "description": "将磁力链、种子链接和右键下载链接转发到 MoodDownload。",
+  "permissions": ["storage", "contextMenus", "activeTab"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*", "<all_urls>"],
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "MoodDownload",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content-script.js"],
+      "run_at": "document_start"
+    }
+  ]
+}

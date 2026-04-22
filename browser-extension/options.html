@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MoodDownload 插件设置</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <main class="panel panel-wide">
+      <section class="card">
+        <span class="eyebrow">连接设置</span>
+        <h1>本地服务配置</h1>
+        <label class="field">
+          <span>服务地址</span>
+          <input id="service-url" type="text" />
+        </label>
+        <label class="field">
+          <span>本地令牌</span>
+          <input id="local-token" type="text" />
+        </label>
+        <label class="field">
+          <span>调用方类型</span>
+          <input id="client-type" type="text" />
+        </label>
+      </section>
+
+      <section class="card">
+        <span class="eyebrow">接管开关</span>
+        <h2>自动接管范围</h2>
+        <label class="toggle-row">
+          <span>自动接管磁力链点击</span>
+          <input id="auto-capture-magnet" type="checkbox" />
+        </label>
+        <label class="toggle-row">
+          <span>自动接管种子链接点击</span>
+          <input id="auto-capture-torrent" type="checkbox" />
+        </label>
+        <label class="toggle-row">
+          <span>自动接管左键下载按钮</span>
+          <input id="auto-capture-download-button" type="checkbox" />
+        </label>
+        <label class="toggle-row">
+          <span>启用右键发送到客户端</span>
+          <input id="capture-via-context-menu" type="checkbox" />
+        </label>
+      </section>
+
+      <section class="card">
+        <span class="eyebrow">说明</span>
+        <div class="muted">
+          当前插件会优先覆盖磁力链、`.torrent` 链接、明确的文件下载链接左键点击和右键发送到客户端。
+          如果某些站点不希望自动拦截，可以关闭对应开关。
+        </div>
+        <div class="actions">
+          <button id="save-options" class="button" type="button">保存设置</button>
+        </div>
+        <p id="save-result" class="muted"></p>
+      </section>
+    </main>
+    <script src="options.js" type="module"></script>
+  </body>
+  </html>
