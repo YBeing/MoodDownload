@@ -138,6 +138,36 @@ function resolveRuntimeResourcePath(...segments) {
 }
 
 /**
+ * 解析桌面端窗口图标路径，优先使用随应用打包的品牌图标。
+ *
+ * @returns {string | undefined}
+ */
+function resolveAppIconPath() {
+  const iconPath = path.join(__dirname, "..", "build", "icon.png");
+  return fs.existsSync(iconPath) ? iconPath : undefined;
+}
+
+/**
+ * 应用 macOS Dock 图标；BrowserWindow.icon 在 macOS 开发态不会替换 Dock 默认图标。
+ */
+function applyMacDockIcon() {
+  if (process.platform !== "darwin" || !app.dock) {
+    return;
+  }
+  const iconPath = resolveAppIconPath();
+  if (!iconPath) {
+    console.warn("[app-icon] 未找到应用图标资源");
+    return;
+  }
+  const dockIcon = nativeImage.createFromPath(iconPath);
+  if (dockIcon.isEmpty()) {
+    console.warn("[app-icon] 应用图标资源无法加载:", iconPath);
+    return;
+  }
+  app.dock.setIcon(dockIcon);
+}
+
+/**
  * 构建桌面窗口选项，优先复用系统原生标题栏与窗口控制按钮。
  *
  * @returns {import("electron").BrowserWindowConstructorOptions}
@@ -150,6 +180,7 @@ function buildWindowOptions() {
     minHeight: APP_WINDOW_MIN_HEIGHT,
     backgroundColor: "#0b0f14",
     title: "MoodDownload",
+    icon: resolveAppIconPath(),
     autoHideMenuBar: true,
     frame: true,
     webPreferences: {
@@ -939,6 +970,7 @@ ipcMain.handle("app:restartAria2Engine", async (_event, payload) => {
 
 app.whenReady().then(async () => {
   app.setAppUserModelId("com.mooddownload.desktop");
+  applyMacDockIcon();
 
   try {
     if (shouldUseManagedRuntime()) {

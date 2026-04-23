@@ -81,9 +81,12 @@ public class TaskWorkflowService {
      * @return 最新任务结果
      */
     public TaskOperationResult resumeTask(Long taskId) {
+        DownloadTaskModel currentTask = taskQueryService.getTaskById(taskId);
+        resumeEngineTasksIfNecessary(currentTask);
         TaskOperationResult taskOperationResult = taskCommandService.resumeTask(taskId);
         publishTaskEventIfNecessary(taskOperationResult);
-        if (!taskOperationResult.isIdempotent()) {
+        if (!taskOperationResult.isIdempotent()
+            && "PENDING".equals(taskOperationResult.getTaskModel().getDomainStatus())) {
             taskDispatchScheduler.dispatchTask(taskOperationResult.getTaskModel().getId());
         }
         return refreshTaskOperationResult(taskOperationResult);
@@ -111,6 +114,8 @@ public class TaskWorkflowService {
      * @return 最新任务结果
      */
     public TaskOperationResult pauseTask(Long taskId) {
+        DownloadTaskModel currentTask = taskQueryService.getTaskById(taskId);
+        pauseEngineTasksIfNecessary(currentTask);
         TaskOperationResult taskOperationResult = taskCommandService.pauseTask(taskId);
         publishTaskEventIfNecessary(taskOperationResult);
         return refreshTaskOperationResult(taskOperationResult);
@@ -212,6 +217,56 @@ public class TaskWorkflowService {
             LOGGER.info("删除任务前已移除 aria2 任务: taskId={}, gid={}",
                 downloadTaskModel.getId(), engineGid);
         }
+    }
+
+    /**
+     * 暂停已绑定到 aria2 的任务，避免仅修改本地状态后被下一轮引擎同步改回运行中。
+     *
+     * @param downloadTaskModel 当前任务快照
+     */
+    private void pauseEngineTasksIfNecessary(DownloadTaskModel downloadTaskModel) {
+        if (downloadTaskModel == null || !"RUNNING".equals(downloadTaskModel.getDomainStatus())) {
+            return;
+        }
+        for (String engineGid : collectEngineGids(downloadTaskModel)) {
+            aria2CommandService.pauseDownload(engineGid);
+            LOGGER.info("暂停任务前已暂停 aria2 任务: taskId={}, gid={}",
+                downloadTaskModel.getId(), engineGid);
+        }
+    }
+
+    /**
+     * 恢复已绑定到 aria2 的任务，避免重新分发造成重复下载。
+     *
+     * @param downloadTaskModel 当前任务快照
+     */
+    private void resumeEngineTasksIfNecessary(DownloadTaskModel downloadTaskModel) {
+        if (downloadTaskModel == null || !"PAUSED".equals(downloadTaskModel.getDomainStatus())) {
+            return;
+        }
+        for (String engineGid : collectEngineGids(downloadTaskModel)) {
+            aria2CommandService.resumeDownload(engineGid);
+            LOGGER.info("恢复任务前已恢复 aria2 任务: taskId={}, gid={}",
+                downloadTaskModel.getId(), engineGid);
+        }
+    }
+
+    private Set<String> collectEngineGids(DownloadTaskModel downloadTaskModel) {
+        Set<String> engineGids = new LinkedHashSet<>();
+        if (downloadTaskModel == null) {
+            return engineGids;
+        }
+        if (StringUtils.hasText(downloadTaskModel.getEngineGid())) {
+            engineGids.add(downloadTaskModel.getEngineGid().trim());
+        }
+        if (downloadTaskModel.getEngineTasks() != null) {
+            for (DownloadEngineTaskModel downloadEngineTaskModel : downloadTaskModel.getEngineTasks()) {
+                if (downloadEngineTaskModel != null && StringUtils.hasText(downloadEngineTaskModel.getEngineGid())) {
+                    engineGids.add(downloadEngineTaskModel.getEngineGid().trim());
+                }
+            }
+        }
+        return engineGids;
     }
 
     private List<String> buildDeletionWarnings(

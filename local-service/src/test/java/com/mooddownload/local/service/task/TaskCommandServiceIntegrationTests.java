@@ -92,16 +92,16 @@ class TaskCommandServiceIntegrationTests {
         assertThat(pauseResult.isIdempotent()).isFalse();
         assertThat(pauseResult.getTaskModel().getDomainStatus()).isEqualTo(DownloadTaskStatus.PAUSED.name());
         assertThat(resumeResult.isIdempotent()).isFalse();
-        assertThat(resumeResult.getTaskModel().getDomainStatus()).isEqualTo(DownloadTaskStatus.PENDING.name());
+        assertThat(resumeResult.getTaskModel().getDomainStatus()).isEqualTo(DownloadTaskStatus.RUNNING.name());
 
         DownloadTaskModel persistedTask = taskQueryService.getTaskById(taskId);
-        assertThat(persistedTask.getDomainStatus()).isEqualTo(DownloadTaskStatus.PENDING.name());
+        assertThat(persistedTask.getDomainStatus()).isEqualTo(DownloadTaskStatus.RUNNING.name());
         assertThat(persistedTask.getVersion()).isEqualTo(2);
 
         List<TaskStateLogDO> stateLogs = taskStateLogRepository.listByTaskId(taskId);
         assertThat(stateLogs).hasSize(2);
         assertThat(stateLogs.get(0).getToStatus()).isEqualTo("PAUSED");
-        assertThat(stateLogs.get(1).getToStatus()).isEqualTo("PENDING");
+        assertThat(stateLogs.get(1).getToStatus()).isEqualTo("RUNNING");
     }
 
     @Test

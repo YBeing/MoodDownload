@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { deleteTask, getTaskOpenContext, pauseTask, resumeTask, retryTask } from "@/domains/task/api/taskApi";
 import { useTaskEvents } from "@/app/providers/TaskEventsProvider";
 import { useShell } from "@/domains/shell/hooks/useShell";
@@ -40,12 +41,14 @@ function resolvePrimaryActionLabel(status: TaskDomainStatus | string) {
 }
 
 export function useTaskCollection(viewKey: TaskRouteKey) {
+  const navigate = useNavigate();
   const { lastEvent } = useTaskEvents();
   const { pushToast, openTaskDetail } = useShell();
   const taskState = useTaskStore();
   const [busyTaskId, setBusyTaskId] = useState<number | null>(null);
   const [actionFeedbacks, setActionFeedbacks] = useState<Record<number, TaskActionFeedbackItem>>({});
   const feedbackTimersRef = useRef<Record<number, number>>({});
+  const completionNavigationTimestampRef = useRef(lastEvent?.timestamp || 0);
 
   async function reloadTasks(silent = false) {
     await taskStore.reloadTasks({
@@ -63,6 +66,16 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
       return;
     }
     taskStore.applyTaskEvent(lastEvent);
+    if (
+      lastEvent.domainStatus === "COMPLETED"
+      && lastEvent.timestamp > completionNavigationTimestampRef.current
+      && viewKey !== "completed"
+    ) {
+      completionNavigationTimestampRef.current = lastEvent.timestamp;
+      navigateToTaskView("completed");
+      return;
+    }
+    completionNavigationTimestampRef.current = Math.max(completionNavigationTimestampRef.current, lastEvent.timestamp);
   }, [lastEvent?.timestamp]);
 
   useEffect(() => {
@@ -97,6 +110,18 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
     }, ACTION_FEEDBACK_DURATION_MS);
   }
 
+  /**
+   * 根据任务操作结果切换到目标分组页面，避免用户在当前分组看到任务瞬间消失后无感知。
+   *
+   * @param targetViewKey 目标任务分组
+   */
+  function navigateToTaskView(targetViewKey: TaskRouteKey) {
+    if (viewKey === targetViewKey) {
+      return;
+    }
+    navigate(`/tasks/${targetViewKey}`);
+  }
+
   async function runPrimaryAction(task: TaskListItem) {
     if (!["RUNNING", "PENDING", "DISPATCHING", "PAUSED", "FAILED"].includes(task.domainStatus)) {
       openTaskDetail(task.taskId);
@@ -112,6 +137,9 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
           message: "暂停请求已提交，任务会在下一次同步后更新状态。",
           tone: "warning"
         });
+        if (viewKey === "running") {
+          navigateToTaskView("paused");
+        }
       } else if (task.domainStatus === "PAUSED") {
         const commandResult = await resumeTask(task.taskId);
         taskStore.applyCommandResult(task.taskId, commandResult);
@@ -119,6 +147,9 @@ export function useTaskCollection(viewKey: TaskRouteKey) {
           message: "继续请求已提交，任务会回到下载队列。",
           tone: "success"
         });
+        if (viewKey === "paused") {
+          navigateToTaskView("running");
+        }
       } else if (task.domainStatus === "FAILED") {
         const commandResult = await retryTask(task.taskId);
         taskStore.applyCommandResult(task.taskId, commandResult);
