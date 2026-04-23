@@ -155,6 +155,49 @@ public class Aria2CommandService {
     }
 
     /**
+     * 暂停 aria2 中已有的下载任务。
+     *
+     * @param engineGid aria2 gid
+     * @return 被暂停的 gid
+     */
+    public String pauseDownload(String engineGid) {
+        if (!StringUtils.hasText(engineGid)) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "engineGid 不能为空");
+        }
+        String normalizedEngineGid = engineGid.trim();
+        try {
+            String pausedGid = aria2RpcClient.pause(normalizedEngineGid);
+            LOGGER.info("暂停 aria2 任务成功: gid={}, mode=pause", pausedGid);
+            return pausedGid;
+        } catch (BizException exception) {
+            if (isTransportFailure(exception)) {
+                throw exception;
+            }
+            LOGGER.warn("普通暂停 aria2 任务失败，准备尝试强制暂停: gid={}", normalizedEngineGid, exception);
+        }
+
+        String pausedGid = aria2RpcClient.forcePause(normalizedEngineGid);
+        LOGGER.info("暂停 aria2 任务成功: gid={}, mode=forcePause", pausedGid);
+        return pausedGid;
+    }
+
+    /**
+     * 恢复 aria2 中已暂停的下载任务。
+     *
+     * @param engineGid aria2 gid
+     * @return 被恢复的 gid
+     */
+    public String resumeDownload(String engineGid) {
+        if (!StringUtils.hasText(engineGid)) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "engineGid 不能为空");
+        }
+        String normalizedEngineGid = engineGid.trim();
+        String unpausedGid = aria2RpcClient.unpause(normalizedEngineGid);
+        LOGGER.info("恢复 aria2 任务成功: gid={}", unpausedGid);
+        return unpausedGid;
+    }
+
+    /**
      * 仅为种子任务指定输出文件名。
      *
      * <p>HTTP/HTTPS 下载如果显式透传 displayName，会覆盖 aria2 基于 URL 或 Content-Disposition

@@ -209,6 +209,57 @@ public class Aria2RpcClient {
     }
 
     /**
+     * 暂停 aria2 中的下载任务。
+     *
+     * @param gid aria2 gid
+     * @return 被暂停的 gid
+     */
+    public String pause(String gid) {
+        validateEnabled();
+        if (!StringUtils.hasText(gid)) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "gid 不能为空");
+        }
+        JsonNode result = invoke("aria2.pause", Collections.<Object>singletonList(gid));
+        String pausedGid = result.asText();
+        LOGGER.info("aria2 pause 调用成功: gid={}", pausedGid);
+        return pausedGid;
+    }
+
+    /**
+     * 强制暂停 aria2 中的下载任务。
+     *
+     * @param gid aria2 gid
+     * @return 被暂停的 gid
+     */
+    public String forcePause(String gid) {
+        validateEnabled();
+        if (!StringUtils.hasText(gid)) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "gid 不能为空");
+        }
+        JsonNode result = invoke("aria2.forcePause", Collections.<Object>singletonList(gid));
+        String pausedGid = result.asText();
+        LOGGER.info("aria2 forcePause 调用成功: gid={}", pausedGid);
+        return pausedGid;
+    }
+
+    /**
+     * 恢复 aria2 中已暂停的下载任务。
+     *
+     * @param gid aria2 gid
+     * @return 被恢复的 gid
+     */
+    public String unpause(String gid) {
+        validateEnabled();
+        if (!StringUtils.hasText(gid)) {
+            throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "gid 不能为空");
+        }
+        JsonNode result = invoke("aria2.unpause", Collections.<Object>singletonList(gid));
+        String unpausedGid = result.asText();
+        LOGGER.info("aria2 unpause 调用成功: gid={}", unpausedGid);
+        return unpausedGid;
+    }
+
+    /**
      * 更新 aria2 全局配置。
      *
      * @param options 全局配置项

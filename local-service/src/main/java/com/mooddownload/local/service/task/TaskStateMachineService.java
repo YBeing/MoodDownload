@@ -175,6 +175,9 @@ public class TaskStateMachineService {
                 }
                 break;
             case RESUME:
+                if (fromStatus == DownloadTaskStatus.PAUSED && StringUtils.hasText(taskModel.getEngineGid())) {
+                    return DownloadTaskStatus.RUNNING;
+                }
                 if (fromStatus == DownloadTaskStatus.PAUSED || fromStatus == DownloadTaskStatus.FAILED) {
                     return DownloadTaskStatus.PENDING;
                 }
@@ -245,6 +248,10 @@ public class TaskStateMachineService {
                 taskModel.setEngineStatus("UNKNOWN");
                 break;
             case RESUME:
+                taskModel.setEngineStatus(toStatus == DownloadTaskStatus.RUNNING ? "ACTIVE" : "UNKNOWN");
+                taskModel.setErrorCode(null);
+                taskModel.setErrorMessage(null);
+                break;
             case RETRY:
                 taskModel.setEngineStatus("UNKNOWN");
                 taskModel.setErrorCode(null);

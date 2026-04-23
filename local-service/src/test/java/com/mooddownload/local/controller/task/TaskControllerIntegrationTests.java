@@ -291,11 +291,8 @@ class TaskControllerIntegrationTests {
         Long runningTaskId = seedTask(DownloadTaskStatus.RUNNING, 0, 3, "request-api-running", tempDownloadDir.toString());
         Long failedTaskId = seedTask(DownloadTaskStatus.FAILED, 1, 3, "request-api-failed", tempDownloadDir.toString());
 
-        when(aria2RpcClient.addUri(
-            "https://example.com/request-api-running.iso",
-            tempDownloadDir.toString(),
-            null
-        )).thenReturn("gid-api-running-resume");
+        when(aria2RpcClient.pause("gid-request-api-running")).thenReturn("gid-request-api-running");
+        when(aria2RpcClient.unpause("gid-request-api-running")).thenReturn("gid-request-api-running");
         when(aria2RpcClient.addUri(
             "https://example.com/request-api-failed.iso",
             tempDownloadDir.toString(),
@@ -346,6 +343,8 @@ class TaskControllerIntegrationTests {
             .get()
             .extracting(DownloadTaskDO::getDomainStatus)
             .isEqualTo("RUNNING");
+        verify(aria2RpcClient, times(1)).pause("gid-request-api-running");
+        verify(aria2RpcClient, times(1)).unpause("gid-request-api-running");
         assertThat(downloadTaskRepository.findById(failedTaskId))
             .get()
             .extracting(DownloadTaskDO::getDomainStatus)
@@ -359,6 +358,35 @@ class TaskControllerIntegrationTests {
             .andExpect(jsonPath("$.code").value("0"))
             .andExpect(jsonPath("$.data.total").value(1))
             .andExpect(jsonPath("$.data.items[0].taskId").value(runningTaskId));
+    }
+
+    @Test
+    void shouldDeleteExistingSourceFileWhenDisplayNameDoesNotMatchActualFileName() throws Exception {
+        Path tempDownloadDir = Files.createTempDirectory("task-controller-mismatch");
+        Path actualDownloadedFile = tempDownloadDir.resolve("actual-server-name.bin");
+        Files.write(actualDownloadedFile, "payload".getBytes(StandardCharsets.UTF_8));
+
+        Long taskId = seedTask(
+            DownloadTaskStatus.COMPLETED,
+            0,
+            3,
+            "request-api-delete-mismatch",
+            tempDownloadDir.toString(),
+            "https://example.com/download/actual-server-name.bin?token=abc",
+            "用户显示名"
+        );
+
+        mockMvc.perform(delete("/api/tasks/{id}", taskId)
+                .param("deleteMode", "TASK_AND_OUTPUT")
+                .header(HeaderConstants.LOCAL_TOKEN, "test-local-token")
+                .header(HeaderConstants.CLIENT_TYPE, "desktop-app"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("0"))
+            .andExpect(jsonPath("$.data.taskId").value(taskId))
+            .andExpect(jsonPath("$.data.deleteMode").value("TASK_AND_OUTPUT"))
+            .andExpect(jsonPath("$.data.outputRemoved").value(true));
+
+        assertThat(Files.exists(actualDownloadedFile)).isFalse();
     }
 
     @Test
@@ -396,12 +424,32 @@ class TaskControllerIntegrationTests {
         String clientRequestId,
         String saveDir
     ) {
+        return seedTask(
+            downloadTaskStatus,
+            retryCount,
+            maxRetryCount,
+            clientRequestId,
+            saveDir,
+            "https://example.com/" + clientRequestId + ".iso",
+            clientRequestId + ".iso"
+        );
+    }
+
+    private Long seedTask(
+        DownloadTaskStatus downloadTaskStatus,
+        int retryCount,
+        int maxRetryCount,
+        String clientRequestId,
+        String saveDir,
+        String sourceUri,
+        String displayName
+    ) {
         long now = System.currentTimeMillis();
         DownloadTaskDO downloadTaskDO = new DownloadTaskDO();
         downloadTaskDO.setTaskCode("TASK-" + now + "-" + clientRequestId);
         downloadTaskDO.setSourceType("HTTP");
-        downloadTaskDO.setSourceUri("https://example.com/" + clientRequestId + ".iso");
-        downloadTaskDO.setDisplayName(clientRequestId + ".iso");
+        downloadTaskDO.setSourceUri(sourceUri);
+        downloadTaskDO.setDisplayName(displayName);
         downloadTaskDO.setDomainStatus(downloadTaskStatus.name());
         downloadTaskDO.setEngineStatus(downloadTaskStatus == DownloadTaskStatus.RUNNING ? "ACTIVE" : "ERROR");
         downloadTaskDO.setEngineGid("gid-" + clientRequestId);
