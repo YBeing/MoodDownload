@@ -91,6 +91,24 @@ class Aria2CommandServiceTests {
     }
 
     @Test
+    void shouldTreatCannotBePausedNowAsIdempotentPause() {
+        when(aria2RpcClient.pause("gid-complete-metadata"))
+            .thenThrow(new BizException(
+                ErrorCode.EXTERNAL_ENGINE_ERROR,
+                "aria2 RPC 调用失败: GID#gid-complete-metadata cannot be paused now"
+            ));
+        when(aria2RpcClient.forcePause("gid-complete-metadata"))
+            .thenThrow(new BizException(
+                ErrorCode.EXTERNAL_ENGINE_ERROR,
+                "aria2 RPC 调用失败: GID#gid-complete-metadata cannot be paused now"
+            ));
+
+        assertThat(aria2CommandService.pauseDownload("gid-complete-metadata")).isEqualTo("gid-complete-metadata");
+        verify(aria2RpcClient).pause("gid-complete-metadata");
+        verify(aria2RpcClient).forcePause("gid-complete-metadata");
+    }
+
+    @Test
     void shouldReadTorrentFilesViaRpcClient() {
         Aria2TaskFileDTO aria2TaskFileDTO = new Aria2TaskFileDTO();
         aria2TaskFileDTO.setPath("/downloads/demo/file-1.mkv");

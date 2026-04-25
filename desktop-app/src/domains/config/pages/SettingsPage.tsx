@@ -10,15 +10,12 @@ import {
 } from "@/domains/config/api/configApi";
 import { Aria2RestartConfirmDialog } from "@/domains/config/components/Aria2RestartConfirmDialog";
 import { Aria2SettingsSection } from "@/domains/config/components/Aria2SettingsSection";
-import { BaiduPanSettingsSection } from "@/domains/config/components/BaiduPanSettingsSection";
 import { BasicSettingsSection } from "@/domains/config/components/BasicSettingsSection";
 import type { BtTrackerSet, DownloadConfig, EngineRuntimeSnapshot, UpdateDownloadConfigPayload } from "@/domains/config/models/config";
 import { getDefaultAria2Command, buildAria2Command, parseAria2Command } from "@/domains/config/utils/aria2Command";
-import { preflightBaiduPan, resolveBaiduPan } from "@/domains/provider/api/providerApi";
-import type { BaiduPanPreflightResult, BaiduPanResolveResult } from "@/domains/provider/models/provider";
 import { useShell } from "@/domains/shell/hooks/useShell";
 
-type SettingsTabKey = "basic" | "aria2" | "baidupan";
+type SettingsTabKey = "basic" | "aria2";
 
 interface PendingAria2RestartPayload {
   profileJson: string;
@@ -35,11 +32,6 @@ const SETTINGS_TABS: Array<{ key: SettingsTabKey; label: string; description: st
     key: "aria2",
     label: "aria2 配置",
     description: "只保留 aria2 启动命令，并支持保存后按需重启引擎。"
-  },
-  {
-    key: "baidupan",
-    label: "百度网盘配置",
-    description: "预研入口和后续待实现的网盘能力。"
   }
 ];
 
@@ -82,13 +74,6 @@ export function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const [baiduShareUrl, setBaiduShareUrl] = useState("");
-  const [baiduAuthContext, setBaiduAuthContext] = useState("");
-  const [baiduProviderContext, setBaiduProviderContext] = useState("");
-  const [baiduPreflightResult, setBaiduPreflightResult] = useState<BaiduPanPreflightResult | null>(null);
-  const [baiduResolveResult, setBaiduResolveResult] = useState<BaiduPanResolveResult | null>(null);
-  const [checkingBaiduPan, setCheckingBaiduPan] = useState(false);
-  const [resolvingBaiduPan, setResolvingBaiduPan] = useState(false);
   const [activeTab, setActiveTab] = useState<SettingsTabKey>("basic");
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false);
   const [restartingAria2Engine, setRestartingAria2Engine] = useState(false);
@@ -230,45 +215,6 @@ export function SettingsPage() {
     }
   }
 
-  async function runBaiduPanPreflight() {
-    if (!baiduShareUrl.trim() && !baiduAuthContext.trim()) {
-      pushToast("请至少填写分享链接或鉴权上下文", "warning");
-      return;
-    }
-    try {
-      setCheckingBaiduPan(true);
-      const result = await preflightBaiduPan({
-        shareUrl: baiduShareUrl.trim() || undefined,
-        authContext: baiduAuthContext.trim() || undefined
-      });
-      setBaiduPreflightResult(result);
-      pushToast("百度网盘预研校验已完成", "success");
-    } catch (error) {
-      pushToast(error instanceof Error ? error.message : "百度网盘预研校验失败", "danger");
-    } finally {
-      setCheckingBaiduPan(false);
-    }
-  }
-
-  async function runBaiduPanResolve() {
-    if (!baiduProviderContext.trim()) {
-      pushToast("请输入 Provider 上下文后再执行解析", "warning");
-      return;
-    }
-    try {
-      setResolvingBaiduPan(true);
-      const result = await resolveBaiduPan({
-        providerContext: baiduProviderContext.trim()
-      });
-      setBaiduResolveResult(result);
-      pushToast("百度网盘预研解析已完成", "success");
-    } catch (error) {
-      pushToast(error instanceof Error ? error.message : "百度网盘预研解析失败", "danger");
-    } finally {
-      setResolvingBaiduPan(false);
-    }
-  }
-
   function closeRestartConfirm() {
     setRestartConfirmOpen(false);
     setPendingRestartPayload(null);
@@ -313,7 +259,7 @@ export function SettingsPage() {
       <section className="page-header">
         <div>
           <h1>设置</h1>
-          <p>配置按基础设置、aria2 启动命令和百度网盘预研三块拆开，减少不同配置域混在一起。</p>
+          <p>配置按基础设置和 aria2 启动命令拆开，减少不同配置域混在一起。</p>
         </div>
         <div className="capture-card page-header-card">
           <strong>运行参数基线</strong>
@@ -362,23 +308,6 @@ export function SettingsPage() {
             onSubmit={submitAria2Command}
             runtimeSnapshot={runtimeSnapshot}
             saving={saving}
-          />
-        ) : null}
-
-        {activeTab === "baidupan" ? (
-          <BaiduPanSettingsSection
-            authContext={baiduAuthContext}
-            checking={checkingBaiduPan}
-            onChangeAuthContext={setBaiduAuthContext}
-            onChangeProviderContext={setBaiduProviderContext}
-            onChangeShareUrl={setBaiduShareUrl}
-            onPreflight={runBaiduPanPreflight}
-            onResolve={runBaiduPanResolve}
-            preflightResult={baiduPreflightResult}
-            providerContext={baiduProviderContext}
-            resolveResult={baiduResolveResult}
-            resolving={resolvingBaiduPan}
-            shareUrl={baiduShareUrl}
           />
         ) : null}
       </div>

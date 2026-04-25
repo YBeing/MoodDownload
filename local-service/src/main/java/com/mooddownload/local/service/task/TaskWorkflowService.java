@@ -228,7 +228,7 @@ public class TaskWorkflowService {
         if (downloadTaskModel == null || !"RUNNING".equals(downloadTaskModel.getDomainStatus())) {
             return;
         }
-        for (String engineGid : collectEngineGids(downloadTaskModel)) {
+        for (String engineGid : collectControllableEngineGids(downloadTaskModel)) {
             aria2CommandService.pauseDownload(engineGid);
             LOGGER.info("暂停任务前已暂停 aria2 任务: taskId={}, gid={}",
                 downloadTaskModel.getId(), engineGid);
@@ -244,7 +244,7 @@ public class TaskWorkflowService {
         if (downloadTaskModel == null || !"PAUSED".equals(downloadTaskModel.getDomainStatus())) {
             return;
         }
-        for (String engineGid : collectEngineGids(downloadTaskModel)) {
+        for (String engineGid : collectControllableEngineGids(downloadTaskModel)) {
             aria2CommandService.resumeDownload(engineGid);
             LOGGER.info("恢复任务前已恢复 aria2 任务: taskId={}, gid={}",
                 downloadTaskModel.getId(), engineGid);
@@ -267,6 +267,57 @@ public class TaskWorkflowService {
             }
         }
         return engineGids;
+    }
+
+    /**
+     * 收集用户暂停/恢复时可直接操作的真实下载 GID，跳过 magnet metadata 和已终态子任务。
+     *
+     * @param downloadTaskModel 当前任务快照
+     * @return 可控制的 aria2 gid 集合
+     */
+    private Set<String> collectControllableEngineGids(DownloadTaskModel downloadTaskModel) {
+        Set<String> engineGids = new LinkedHashSet<>();
+        if (downloadTaskModel == null) {
+            return engineGids;
+        }
+        if (downloadTaskModel.getEngineTasks() != null && !downloadTaskModel.getEngineTasks().isEmpty()) {
+            Set<String> skippedGids = new LinkedHashSet<>();
+            for (DownloadEngineTaskModel downloadEngineTaskModel : downloadTaskModel.getEngineTasks()) {
+                if (!isControllableEngineTask(downloadEngineTaskModel)) {
+                    if (downloadEngineTaskModel != null && StringUtils.hasText(downloadEngineTaskModel.getEngineGid())) {
+                        skippedGids.add(downloadEngineTaskModel.getEngineGid().trim());
+                    }
+                    continue;
+                }
+                engineGids.add(downloadEngineTaskModel.getEngineGid().trim());
+            }
+            if (StringUtils.hasText(downloadTaskModel.getEngineGid())
+                && !skippedGids.contains(downloadTaskModel.getEngineGid().trim())) {
+                engineGids.add(downloadTaskModel.getEngineGid().trim());
+            }
+            return engineGids;
+        }
+        if (StringUtils.hasText(downloadTaskModel.getEngineGid())) {
+            engineGids.add(downloadTaskModel.getEngineGid().trim());
+        }
+        return engineGids;
+    }
+
+    private boolean isControllableEngineTask(DownloadEngineTaskModel downloadEngineTaskModel) {
+        if (downloadEngineTaskModel == null || !StringUtils.hasText(downloadEngineTaskModel.getEngineGid())) {
+            return false;
+        }
+        if (Boolean.TRUE.equals(downloadEngineTaskModel.getMetadataOnly())) {
+            return false;
+        }
+        String engineStatus = downloadEngineTaskModel.getEngineStatus();
+        return !isTerminalEngineStatus(engineStatus);
+    }
+
+    private boolean isTerminalEngineStatus(String engineStatus) {
+        return "complete".equalsIgnoreCase(engineStatus)
+            || "removed".equalsIgnoreCase(engineStatus)
+            || "error".equalsIgnoreCase(engineStatus);
     }
 
     private List<String> buildDeletionWarnings(

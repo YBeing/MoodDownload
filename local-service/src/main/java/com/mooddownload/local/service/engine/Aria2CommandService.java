@@ -176,9 +176,17 @@ public class Aria2CommandService {
             LOGGER.warn("普通暂停 aria2 任务失败，准备尝试强制暂停: gid={}", normalizedEngineGid, exception);
         }
 
-        String pausedGid = aria2RpcClient.forcePause(normalizedEngineGid);
-        LOGGER.info("暂停 aria2 任务成功: gid={}, mode=forcePause", pausedGid);
-        return pausedGid;
+        try {
+            String pausedGid = aria2RpcClient.forcePause(normalizedEngineGid);
+            LOGGER.info("暂停 aria2 任务成功: gid={}, mode=forcePause", pausedGid);
+            return pausedGid;
+        } catch (BizException exception) {
+            if (isCannotBePausedNow(exception)) {
+                LOGGER.info("aria2 任务当前不可暂停，按幂等暂停处理: gid={}", normalizedEngineGid);
+                return normalizedEngineGid;
+            }
+            throw exception;
+        }
     }
 
     /**
@@ -192,9 +200,17 @@ public class Aria2CommandService {
             throw new BizException(ErrorCode.COMMON_PARAM_INVALID, "engineGid 不能为空");
         }
         String normalizedEngineGid = engineGid.trim();
-        String unpausedGid = aria2RpcClient.unpause(normalizedEngineGid);
-        LOGGER.info("恢复 aria2 任务成功: gid={}", unpausedGid);
-        return unpausedGid;
+        try {
+            String unpausedGid = aria2RpcClient.unpause(normalizedEngineGid);
+            LOGGER.info("恢复 aria2 任务成功: gid={}", unpausedGid);
+            return unpausedGid;
+        } catch (BizException exception) {
+            if (isCannotBeUnpausedNow(exception)) {
+                LOGGER.info("aria2 任务当前不可恢复，按幂等恢复处理: gid={}", normalizedEngineGid);
+                return normalizedEngineGid;
+            }
+            throw exception;
+        }
     }
 
     /**
@@ -222,5 +238,21 @@ public class Aria2CommandService {
         return exception != null
             && exception.getMessage() != null
             && exception.getMessage().toLowerCase().contains("not found");
+    }
+
+    private boolean isCannotBePausedNow(BizException exception) {
+        return hasMessageFragment(exception, "cannot be paused now")
+            || hasMessageFragment(exception, "is already paused");
+    }
+
+    private boolean isCannotBeUnpausedNow(BizException exception) {
+        return hasMessageFragment(exception, "cannot be unpaused now")
+            || hasMessageFragment(exception, "not paused");
+    }
+
+    private boolean hasMessageFragment(BizException exception, String fragment) {
+        return exception != null
+            && exception.getMessage() != null
+            && exception.getMessage().toLowerCase().contains(fragment);
     }
 }

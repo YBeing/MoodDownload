@@ -20,7 +20,9 @@ import com.mooddownload.local.client.aria2.dto.Aria2TaskFileDTO;
 import com.mooddownload.local.common.constant.HeaderConstants;
 import com.mooddownload.local.common.enums.ErrorCode;
 import com.mooddownload.local.common.exception.BizException;
+import com.mooddownload.local.dal.task.DownloadEngineTaskRepository;
 import com.mooddownload.local.dal.task.DownloadTaskRepository;
+import com.mooddownload.local.mapper.task.DownloadEngineTaskDO;
 import com.mooddownload.local.mapper.task.DownloadTaskDO;
 import com.mooddownload.local.service.task.state.DownloadTaskStatus;
 import java.nio.charset.StandardCharsets;
@@ -54,6 +56,9 @@ class TaskControllerIntegrationTests {
 
     @Autowired
     private DownloadTaskRepository downloadTaskRepository;
+
+    @Autowired
+    private DownloadEngineTaskRepository downloadEngineTaskRepository;
 
     @MockBean
     private Aria2RpcClient aria2RpcClient;
@@ -361,6 +366,47 @@ class TaskControllerIntegrationTests {
     }
 
     @Test
+    void shouldPauseAndResumeBtAggregateTaskWithoutTouchingMetadataGid() throws Exception {
+        Long taskId = seedBtAggregateTask(
+            "request-api-bt-pause",
+            "gid-api-bt-real",
+            "gid-api-bt-metadata"
+        );
+        when(aria2RpcClient.pause("gid-api-bt-real")).thenReturn("gid-api-bt-real");
+        when(aria2RpcClient.unpause("gid-api-bt-real")).thenReturn("gid-api-bt-real");
+        when(aria2RpcClient.pause("gid-api-bt-metadata"))
+            .thenThrow(new BizException(
+                ErrorCode.EXTERNAL_ENGINE_ERROR,
+                "aria2 RPC 调用失败: GID#gid-api-bt-metadata cannot be paused now"
+            ));
+        when(aria2RpcClient.forcePause("gid-api-bt-metadata"))
+            .thenThrow(new BizException(
+                ErrorCode.EXTERNAL_ENGINE_ERROR,
+                "aria2 RPC 调用失败: GID#gid-api-bt-metadata cannot be paused now"
+            ));
+
+        mockMvc.perform(post("/api/tasks/{id}/pause", taskId)
+                .header(HeaderConstants.LOCAL_TOKEN, "test-local-token")
+                .header(HeaderConstants.CLIENT_TYPE, "desktop-app"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("0"))
+            .andExpect(jsonPath("$.data.domainStatus").value("PAUSED"));
+
+        mockMvc.perform(post("/api/tasks/{id}/resume", taskId)
+                .header(HeaderConstants.LOCAL_TOKEN, "test-local-token")
+                .header(HeaderConstants.CLIENT_TYPE, "desktop-app"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value("0"))
+            .andExpect(jsonPath("$.data.domainStatus").value("RUNNING"));
+
+        verify(aria2RpcClient, times(1)).pause("gid-api-bt-real");
+        verify(aria2RpcClient, times(0)).pause("gid-api-bt-metadata");
+        verify(aria2RpcClient, times(0)).forcePause("gid-api-bt-metadata");
+        verify(aria2RpcClient, times(1)).unpause("gid-api-bt-real");
+        verify(aria2RpcClient, times(0)).unpause("gid-api-bt-metadata");
+    }
+
+    @Test
     void shouldDeleteExistingSourceFileWhenDisplayNameDoesNotMatchActualFileName() throws Exception {
         Path tempDownloadDir = Files.createTempDirectory("task-controller-mismatch");
         Path actualDownloadedFile = tempDownloadDir.resolve("actual-server-name.bin");
@@ -468,6 +514,61 @@ class TaskControllerIntegrationTests {
         downloadTaskDO.setCreatedAt(now);
         downloadTaskDO.setUpdatedAt(now);
         return downloadTaskRepository.save(downloadTaskDO);
+    }
+
+    private Long seedBtAggregateTask(String clientRequestId, String realEngineGid, String metadataEngineGid) {
+        long now = System.currentTimeMillis();
+        DownloadTaskDO downloadTaskDO = new DownloadTaskDO();
+        downloadTaskDO.setTaskCode("TASK-" + now + "-" + clientRequestId);
+        downloadTaskDO.setSourceType("MAGNET");
+        downloadTaskDO.setSourceUri("magnet:?xt=urn:btih:ABCDEF1234567890ABCDEF1234567890ABCDEF12");
+        downloadTaskDO.setDisplayName(clientRequestId + ".torrent");
+        downloadTaskDO.setDomainStatus(DownloadTaskStatus.RUNNING.name());
+        downloadTaskDO.setEngineStatus("active");
+        downloadTaskDO.setEngineGid(realEngineGid);
+        downloadTaskDO.setQueuePriority(100);
+        downloadTaskDO.setSaveDir("./downloads");
+        downloadTaskDO.setTotalSizeBytes(1024L);
+        downloadTaskDO.setCompletedSizeBytes(256L);
+        downloadTaskDO.setDownloadSpeedBps(128L);
+        downloadTaskDO.setUploadSpeedBps(0L);
+        downloadTaskDO.setRetryCount(0);
+        downloadTaskDO.setMaxRetryCount(3);
+        downloadTaskDO.setClientRequestId(clientRequestId);
+        downloadTaskDO.setVersion(0);
+        downloadTaskDO.setCreatedAt(now);
+        downloadTaskDO.setUpdatedAt(now);
+        Long taskId = downloadTaskRepository.save(downloadTaskDO);
+        downloadEngineTaskRepository.replaceByTaskId(taskId, java.util.Arrays.asList(
+            buildEngineTask(taskId, realEngineGid, metadataEngineGid, "active", 0, 1024L, 256L, now),
+            buildEngineTask(taskId, metadataEngineGid, null, "complete", 1, 0L, 0L, now)
+        ));
+        return taskId;
+    }
+
+    private DownloadEngineTaskDO buildEngineTask(
+        Long taskId,
+        String engineGid,
+        String parentEngineGid,
+        String engineStatus,
+        int metadataOnly,
+        long totalSizeBytes,
+        long completedSizeBytes,
+        long now
+    ) {
+        DownloadEngineTaskDO downloadEngineTaskDO = new DownloadEngineTaskDO();
+        downloadEngineTaskDO.setTaskId(taskId);
+        downloadEngineTaskDO.setEngineGid(engineGid);
+        downloadEngineTaskDO.setParentEngineGid(parentEngineGid);
+        downloadEngineTaskDO.setEngineStatus(engineStatus);
+        downloadEngineTaskDO.setMetadataOnly(metadataOnly);
+        downloadEngineTaskDO.setTotalSizeBytes(totalSizeBytes);
+        downloadEngineTaskDO.setCompletedSizeBytes(completedSizeBytes);
+        downloadEngineTaskDO.setDownloadSpeedBps(0L);
+        downloadEngineTaskDO.setUploadSpeedBps(0L);
+        downloadEngineTaskDO.setCreatedAt(now);
+        downloadEngineTaskDO.setUpdatedAt(now);
+        return downloadEngineTaskDO;
     }
 
     private Aria2TaskFileDTO buildTorrentFile(String index, String path, String length, String selected) {
