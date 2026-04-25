@@ -3,6 +3,7 @@ package com.mooddownload.local.dal.task;
 import com.mooddownload.local.mapper.task.TaskStateLogDO;
 import com.mooddownload.local.mapper.task.TaskStateLogMapper;
 import java.util.List;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
@@ -47,5 +48,15 @@ public class TaskStateLogRepository {
      */
     public List<TaskStateLogDO> listByTaskId(Long taskId) {
         return taskStateLogMapper.selectByTaskId(taskId);
+    }
+
+    /**
+     * 查询任务最近一条状态日志。
+     *
+     * @param taskId 任务 ID
+     * @return 最近状态日志
+     */
+    public Optional<TaskStateLogDO> findLatestByTaskId(Long taskId) {
+        return Optional.ofNullable(taskStateLogMapper.selectLatestByTaskId(taskId));
     }
 }

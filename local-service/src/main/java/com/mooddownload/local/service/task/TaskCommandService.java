@@ -6,6 +6,7 @@ import com.mooddownload.local.dal.task.DownloadEngineTaskRepository;
 import com.mooddownload.local.dal.task.DownloadTaskRepository;
 import com.mooddownload.local.dal.task.TaskStateLogRepository;
 import com.mooddownload.local.mapper.task.DownloadTaskDO;
+import com.mooddownload.local.mapper.task.TaskStateLogDO;
 import com.mooddownload.local.service.engine.model.EngineTaskSnapshot;
 import com.mooddownload.local.service.task.convert.DownloadEngineTaskModelConverter;
 import com.mooddownload.local.service.task.convert.TaskModelConverter;
@@ -36,6 +37,8 @@ import org.springframework.util.StringUtils;
 public class TaskCommandService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TaskCommandService.class);
+
+    private static final long USER_OPERATION_SYNC_GRACE_MILLIS = 45000L;
 
     private final DownloadTaskRepository downloadTaskRepository;
 
@@ -302,6 +305,9 @@ public class TaskCommandService {
 
         long now = System.currentTimeMillis();
         DownloadTaskStatus fromStatus = DownloadTaskStatus.valueOf(downloadTaskModel.getDomainStatus());
+        if (shouldKeepRecentUserOperationStatus(downloadTaskModel, targetStatus, now)) {
+            return new TaskOperationResult(downloadTaskModel, null, true);
+        }
         boolean changed = applySnapshot(downloadTaskModel, engineTaskSnapshot, targetStatus, now);
         if (!changed) {
             return new TaskOperationResult(downloadTaskModel, null, true);
@@ -360,6 +366,9 @@ public class TaskCommandService {
 
         long now = System.currentTimeMillis();
         DownloadTaskStatus fromStatus = DownloadTaskStatus.valueOf(downloadTaskModel.getDomainStatus());
+        if (shouldKeepRecentUserOperationStatus(downloadTaskModel, btTaskAggregateSnapshot.getDomainStatus(), now)) {
+            return new TaskOperationResult(downloadTaskModel, null, true);
+        }
         boolean changed = applyBtAggregate(downloadTaskModel, btTaskAggregateSnapshot, now);
         if (!changed) {
             return new TaskOperationResult(downloadTaskModel, null, true);
@@ -485,6 +494,63 @@ public class TaskCommandService {
             downloadTaskModel.setEngineTasks(Collections.emptyList());
         }
         return downloadTaskModel;
+    }
+
+    /**
+     * 保护最近一次用户暂停/恢复意图，避免 aria2 异步状态延迟被轮询旧快照短暂打回。
+     *
+     * @param downloadTaskModel 当前任务
+     * @param targetStatus 引擎同步目标状态
+     * @param now 当前时间戳
+     * @return 是否保持当前用户操作后的状态
+     */
+    private boolean shouldKeepRecentUserOperationStatus(
+        DownloadTaskModel downloadTaskModel,
+        DownloadTaskStatus targetStatus,
+        long now
+    ) {
+        if (downloadTaskModel == null || downloadTaskModel.getId() == null || targetStatus == null) {
+            return false;
+        }
+        DownloadTaskStatus currentStatus = DownloadTaskStatus.valueOf(downloadTaskModel.getDomainStatus());
+        if (!isOppositePauseResumeSync(currentStatus, targetStatus)) {
+            return false;
+        }
+        TaskStateLogDO latestStateLog = taskStateLogRepository.findLatestByTaskId(downloadTaskModel.getId()).orElse(null);
+        if (!isRecentUserPauseResumeLog(latestStateLog, currentStatus, now)) {
+            return false;
+        }
+        LOGGER.info("忽略用户操作保护期内的引擎旧状态: taskId={}, currentStatus={}, engineTargetStatus={}, triggerType={}",
+            downloadTaskModel.getId(), currentStatus, targetStatus, latestStateLog.getTriggerType());
+        return true;
+    }
+
+    private boolean isOppositePauseResumeSync(DownloadTaskStatus currentStatus, DownloadTaskStatus targetStatus) {
+        return (currentStatus == DownloadTaskStatus.PAUSED && targetStatus == DownloadTaskStatus.RUNNING)
+            || (currentStatus == DownloadTaskStatus.RUNNING && targetStatus == DownloadTaskStatus.PAUSED);
+    }
+
+    private boolean isRecentUserPauseResumeLog(
+        TaskStateLogDO taskStateLogDO,
+        DownloadTaskStatus currentStatus,
+        long now
+    ) {
+        if (taskStateLogDO == null || taskStateLogDO.getCreatedAt() == null) {
+            return false;
+        }
+        if (!"USER".equals(taskStateLogDO.getTriggerSource())) {
+            return false;
+        }
+        if (currentStatus == DownloadTaskStatus.PAUSED
+            && (!"PAUSE".equals(taskStateLogDO.getTriggerType()) || !"PAUSED".equals(taskStateLogDO.getToStatus()))) {
+            return false;
+        }
+        if (currentStatus == DownloadTaskStatus.RUNNING
+            && (!"RESUME".equals(taskStateLogDO.getTriggerType()) || !"RUNNING".equals(taskStateLogDO.getToStatus()))) {
+            return false;
+        }
+        long elapsedMillis = now - taskStateLogDO.getCreatedAt();
+        return elapsedMillis >= 0L && elapsedMillis <= USER_OPERATION_SYNC_GRACE_MILLIS;
     }
 
     /**

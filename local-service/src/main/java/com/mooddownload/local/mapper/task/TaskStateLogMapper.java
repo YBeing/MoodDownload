@@ -35,4 +35,14 @@ public interface TaskStateLogMapper {
     @Select("SELECT " + BASE_COLUMNS
         + " FROM t_task_state_log WHERE task_id = #{taskId} ORDER BY created_at ASC, id ASC")
     List<TaskStateLogDO> selectByTaskId(@Param("taskId") Long taskId);
+
+    /**
+     * 查询任务最近一条状态日志。
+     *
+     * @param taskId 任务 ID
+     * @return 最近状态日志，不存在返回 null
+     */
+    @Select("SELECT " + BASE_COLUMNS
+        + " FROM t_task_state_log WHERE task_id = #{taskId} ORDER BY created_at DESC, id DESC LIMIT 1")
+    TaskStateLogDO selectLatestByTaskId(@Param("taskId") Long taskId);
 }
