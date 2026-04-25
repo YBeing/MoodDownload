@@ -10,6 +10,7 @@ import com.mooddownload.local.client.aria2.dto.Aria2TaskStatusDTO;
 import com.mooddownload.local.dal.task.DownloadTaskRepository;
 import com.mooddownload.local.dal.task.TaskStateLogRepository;
 import com.mooddownload.local.mapper.task.DownloadTaskDO;
+import com.mooddownload.local.mapper.task.TaskStateLogDO;
 import com.mooddownload.local.service.task.model.DownloadTaskModel;
 import com.mooddownload.local.service.task.state.DownloadTaskStatus;
 import java.nio.file.Files;
@@ -135,6 +136,36 @@ class TaskSyncServiceIntegrationTests {
         assertThat(taskStateLogRepository.listByTaskId(taskId)).isEmpty();
     }
 
+    @Test
+    void shouldKeepRecentUserPausedStatusWhenBtEngineStillReportsActive() {
+        Long taskId = seedTask(DownloadTaskStatus.PAUSED, "gid-sync-real", "MAGNET");
+        saveStateLog(taskId, "RUNNING", "PAUSED", "USER", "PAUSE", System.currentTimeMillis());
+        Aria2TaskStatusDTO realDownloadStatus = buildStatus(
+            "gid-sync-real", "active", "734003200", "104857600", "2048", "64", null, null
+        );
+        realDownloadStatus.setBelongsTo("gid-sync-metadata");
+        Aria2TaskStatusDTO metadataStatus = buildStatus(
+            "gid-sync-metadata", "complete", "0", "0", "0", "0", null, null
+        );
+        metadataStatus.setFollowedBy(Collections.singletonList("gid-sync-real"));
+        when(aria2RpcClient.tellActive()).thenReturn(Collections.singletonList(realDownloadStatus));
+        when(aria2RpcClient.tellWaiting(0, 100)).thenReturn(Collections.emptyList());
+        when(aria2RpcClient.tellStopped(0, 100)).thenReturn(Collections.singletonList(metadataStatus));
+        when(aria2RpcClient.getFiles("gid-sync-real")).thenReturn(Collections.singletonList(
+            buildTorrentFile("1", "/downloads/demo/Season 1/Episode 01.mkv", "734003200", "true")
+        ));
+
+        taskSyncService.synchronizeTasks();
+
+        DownloadTaskDO persistedTask = downloadTaskRepository.findById(taskId)
+            .orElseThrow(() -> new IllegalStateException("未查询到暂停保护后的磁力任务"));
+        assertThat(persistedTask.getDomainStatus()).isEqualTo("PAUSED");
+        assertThat(persistedTask.getCompletedSizeBytes()).isEqualTo(0L);
+        assertThat(taskStateLogRepository.listByTaskId(taskId))
+            .extracting(TaskStateLogDO::getToStatus)
+            .containsExactly("PAUSED");
+    }
+
     private Long seedTask(DownloadTaskStatus downloadTaskStatus, String engineGid) {
         return seedTask(downloadTaskStatus, engineGid, "TORRENT");
     }
@@ -163,6 +194,25 @@ class TaskSyncServiceIntegrationTests {
         downloadTaskDO.setCreatedAt(now);
         downloadTaskDO.setUpdatedAt(now);
         return downloadTaskRepository.save(downloadTaskDO);
+    }
+
+    private void saveStateLog(
+        Long taskId,
+        String fromStatus,
+        String toStatus,
+        String triggerSource,
+        String triggerType,
+        long createdAt
+    ) {
+        TaskStateLogDO taskStateLogDO = new TaskStateLogDO();
+        taskStateLogDO.setTaskId(taskId);
+        taskStateLogDO.setFromStatus(fromStatus);
+        taskStateLogDO.setToStatus(toStatus);
+        taskStateLogDO.setTriggerSource(triggerSource);
+        taskStateLogDO.setTriggerType(triggerType);
+        taskStateLogDO.setRemark("测试状态日志");
+        taskStateLogDO.setCreatedAt(createdAt);
+        taskStateLogRepository.save(taskStateLogDO);
     }
 
     private Aria2TaskStatusDTO buildStatus(
