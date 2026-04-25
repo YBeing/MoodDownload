@@ -886,6 +886,52 @@ function stopManagedRuntime() {
   syncManagedRuntimeFlag(false);
 }
 
+/**
+ * 恢复并激活主窗口。Windows 下普通 focus 可能被前台浏览器拦截，因此短暂置顶后再取消。
+ *
+ * @param {string} reason 激活原因
+ * @returns {boolean}
+ */
+function showAndFocusMainWindow(reason) {
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    return false;
+  }
+
+  try {
+    if (mainWindow.isMinimized()) {
+      mainWindow.restore();
+    }
+    if (!mainWindow.isVisible()) {
+      mainWindow.show();
+    }
+
+    if (process.platform === "win32") {
+      const wasAlwaysOnTop = mainWindow.isAlwaysOnTop();
+      mainWindow.setAlwaysOnTop(true, "screen-saver");
+      mainWindow.show();
+      app.focus({ steal: true });
+      mainWindow.focus();
+      mainWindow.moveTop();
+      setTimeout(() => {
+        if (!mainWindow || mainWindow.isDestroyed() || wasAlwaysOnTop) {
+          return;
+        }
+        mainWindow.setAlwaysOnTop(false);
+        emitWindowState(`${reason}-settled`);
+      }, 250);
+    } else {
+      app.focus();
+      mainWindow.focus();
+    }
+
+    emitWindowState(reason);
+    return true;
+  } catch (error) {
+    console.warn("[window] 激活主窗口失败", error);
+    return false;
+  }
+}
+
 ipcMain.handle("window:minimize", () => {
   mainWindow?.minimize();
 });
@@ -926,18 +972,7 @@ ipcMain.handle("window:getState", () => {
  * @returns {boolean}
  */
 ipcMain.handle("window:showAndFocus", () => {
-  if (!mainWindow || mainWindow.isDestroyed()) {
-    return false;
-  }
-  if (mainWindow.isMinimized()) {
-    mainWindow.restore();
-  }
-  if (!mainWindow.isVisible()) {
-    mainWindow.show();
-  }
-  mainWindow.focus();
-  emitWindowState("show-and-focus");
-  return true;
+  return showAndFocusMainWindow("show-and-focus");
 });
 
 ipcMain.handle("app:getRuntimeConfig", () => runtimeConfig);
@@ -1000,8 +1035,7 @@ app.whenReady().then(async () => {
       emitWindowState("activate");
       return;
     }
-    mainWindow?.show();
-    emitWindowState("activate");
+    showAndFocusMainWindow("activate");
   });
 });
 

@@ -1,6 +1,9 @@
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useCapture } from "@/domains/capture/store/capture-context";
 
 export function CapturePromptViewport() {
+  const navigate = useNavigate();
   const {
     clipboardPrompt,
     externalCaptureNotice,
@@ -9,6 +12,12 @@ export function CapturePromptViewport() {
     openExternalCaptureNotice,
     dismissExternalCaptureNotice
   } = useCapture();
+
+  useEffect(() => {
+    if (externalCaptureNotice?.visible) {
+      navigate("/tasks/running");
+    }
+  }, [externalCaptureNotice?.taskId, externalCaptureNotice?.visible, navigate]);
 
   if (!clipboardPrompt.visible && !externalCaptureNotice?.visible) {
     return null;
